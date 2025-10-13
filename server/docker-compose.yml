@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+
+  database:
+      image: postgres:16
+      container_name: postgres-db
+      restart: unless-stopped
+      environment:
+        POSTGRES_DB: ${DB_NAME}
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+      ports:
+        - ${DB_PORTS}
+      volumes:
+        - ./postgres/data:/var/lib/postgresql/data\
+        - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt_conf:/mosquitto/config
+
+  fastapi-app:
+    build: .
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mqtt-broker
+    environment:
+      - MQTT_HOST=mqtt-broker
+      - MQTT_PORT=1883
