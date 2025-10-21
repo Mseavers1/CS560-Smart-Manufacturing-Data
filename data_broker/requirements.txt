@@ -1,0 +1,8 @@
+fastapi-mqtt==2.2.0
+gmqtt==0.7.0
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+typer==0.17.4
+typer-slim==0.17.4
+asyncpg~=0.29
+ntp-facade-smr==1.1.0

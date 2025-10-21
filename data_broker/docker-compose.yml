@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+
+  database:
+      image: postgres:16
+      container_name: postgres-db
+      restart: unless-stopped
+      environment:
+        POSTGRES_DB: ${DB_NAME}
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+      ports:
+        - ${DB_PORTS}
+      volumes:
+        - ./postgres/data:/var/lib/postgresql/data\
+        - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+        - ./database/wal_archive:/var/lib/postgresql/wal_archive  
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mqtt_conf:/mosquitto/config
+
+  fastapi-app:
+    build: .
+    container_name: fastapi-app
+    env_file:
+    - .env  
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mqtt-broker
+    environment:
+      - MQTT_HOST=mqtt-broker
+      - MQTT_PORT=1883
+  
+  ntp:
+    image: cturra/ntp:latest
+    container_name: ntp
+    restart: unless-stopped
+    ports:
+      - "123:123/udp"                  # expose NTP to your LAN
+    environment:
+      - TZ=America/Chicago             # optional but nice to set
+      # Comma-separated, no spaces. Omit to use default (time.cloudflare.com)
+      - NTP_SERVERS=time1.google.com,time2.google.com,time3.google.com,time4.google.com
+      # If *all* upstreams support NTS, you can enable this:
+      # - ENABLE_NTS=true
+    read_only: true                    # recommended hardening
+    tmpfs:                             # required when read_only
+      - /etc/chrony:rw,mode=1750
+      - /run/chrony:rw,mode=1750
+      - /var/lib/chrony:rw,mode=1750
+
+volumes:
+  chrony-state:
