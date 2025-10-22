@@ -18,6 +18,7 @@ from fastapi_mqtt import FastMQTT, MQTTConfig
 import os
 from .database import Database
 from typing import List
+from .tcp_server import handle_robot, start_tcp_server
 
 mqtt_config = MQTTConfig(
     host="host.docker.internal",
@@ -48,24 +49,36 @@ async def start_session(label: str):
 
 @app.get("/session/stop")
 async def stop_session():
+
   try:
+
     db: Database = app.state.db
     await db.end_session()
 
     return {"message": f"Current Session Ended"}
   except Exception as e:
+
     print(f"Failed to stop the current session: {e}", flush=True)
 
     return {"error": str(e)}
 
 @app.on_event("startup")
 async def startup():
-    app.state.db = await Database.create()
 
-@mqtt.subscribe("robot/#")
-async def handle_sensors(client, topic, payload, qos, prop):
-  msg = f"Sensor ({topic}): {payload.decode()}"
-  print(msg)
+  # Start up DB connection
+  app.state.db = await Database.create()
+  
+  # Start up TCP listener
+  port = int(os.getenv("ROBOT_TCP_PORT", "5001"))
+  app.state.tcp_server = await start_tcp_server(app, port=port)
+
+@app.on_event("shutdown")
+async def shutdown():
+    srv = getattr(app.state, "tcp_server", None)
+
+    if srv:
+        srv.close()
+        await srv.wait_closed()
 
 @mqtt.subscribe("imu/#")
 async def handle_sensors(client, topic, payload, qos, prop):
@@ -81,7 +94,7 @@ async def handle_sensors(client, topic, payload, qos, prop):
       device_label=device_label,
       dev_id = msg[0],
       recorded_at = float(msg[1]), 
-      other_time = float(msg[2]), 
+      other_time = msg[2], 
       accel_x = float(msg[3]), 
       accel_y = float(msg[4]), 
       accel_z = float(msg[5]), 

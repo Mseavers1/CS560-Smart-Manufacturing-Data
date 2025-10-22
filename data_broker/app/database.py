@@ -87,6 +87,28 @@ class Database:
 
         return device_id
 
+    async def insert_robot_data(self, ts_str, ts_int, recorded_at, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, received_utc):
+        
+        session_id = self.current_session_id
+
+        # If session doesn't exist, throw error
+        if not session_id:
+            raise SessionNotStarted("No current active session. Run a GET to start a new session.")
+
+        # Get device ID & Session ID
+        device_id = await self.get_or_create_device_id("main", "robot")
+
+        # Insert into robot table
+        async with self.pool.acquire() as conn:
+
+            async with conn.transaction():
+
+                await conn.execute(
+                    "INSERT INTO robot (ts_epoch, joint_1, joint_2, joint_3, joint_4, joint_5, joint_6, x, y, z, w, p, r, recorded_at, ingested_at, device_id, session_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
+                    received_utc, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at, self.get_time(), device_id, self.current_session_id
+                )
+
+
     async def insert_imu_data(self, device_label, dev_id, recorded_at, other_time, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll):
 
         session_id = self.current_session_id
@@ -134,7 +156,7 @@ class Database:
     async def is_in_session_device(self, device_id, session_id): 
 
         if (device_id, session_id) in self.history:
-            return False
+            return True
 
         async with self.pool.acquire() as conn:
 

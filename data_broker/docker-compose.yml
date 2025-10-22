@@ -33,10 +33,12 @@ services:
     - .env  
     ports:
       - "8000:8000"
+      - "5001:5001" # For robot
     depends_on:
       - mqtt-broker
     environment:
       - MQTT_HOST=mqtt-broker
+      - ROBOT_TCP_PORT=5001
       - MQTT_PORT=1883
   
   ntp:
