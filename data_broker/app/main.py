@@ -12,13 +12,15 @@
 # To recover db: cat manufacturing_db.sql | docker exec -i postgres-db psql -U db_user -d manufacturing_db
 
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi_mqtt import FastMQTT, MQTTConfig
 import os
 from .database import Database
 from typing import List
 from .tcp_server import handle_robot, start_tcp_server
+from pathlib import Path
+import subprocess
 
 mqtt_config = MQTTConfig(
     host="host.docker.internal",
@@ -29,6 +31,78 @@ mqtt_config = MQTTConfig(
 app = FastAPI()
 mqtt = FastMQTT(config=mqtt_config)
 mqtt.init_app(app)
+
+def try_backup():
+  
+  try:
+    db: Database = app.state.db
+    print(db.create_backup(), flush=True)
+
+    return {"status": "ok"}
+  except Exception as e:
+    print(f"Failed to manually backup: {e}", flush=True)
+
+    raise HTTPException(status_code=500, detail=f"Backup failed: {e}")
+
+@app.get("/backup/list")
+def list_backups():
+
+  folder = Path("/db_backups")
+  files = []
+
+  # List all files
+  for file in folder.iterdir():
+    if file.is_file():
+      files.append(file.name)
+      print(file.name, flush=True)
+
+  return {"files": files}
+
+# Manually backup
+@app.get("/backup")
+def backup():
+  return try_backup()
+
+### This doesn't work
+@app.get("/backup/load/{file_name}")
+def load_backup(file_name: str):
+    try:
+        backup_file = Path("/db_backups") / file_name  # this is the mounted host folder
+        if not backup_file.exists():
+            raise HTTPException(404, detail=f"Backup not found: {backup_file}")
+
+        # env for pg tools
+        env = {
+            **os.environ,
+            "PGHOST": os.environ.get("PGHOST", "database"),
+            "PGPORT": os.environ.get("PGPORT", "5432"),
+            "PGUSER": os.environ["PGUSER"],
+            "PGPASSWORD": os.environ["PGPASSWORD"],
+            "PGDATABASE": os.environ["PGDATABASE"],
+        }
+
+        # drop & recreate DB to get a clean state
+        subprocess.run(
+            ["dropdb", "--if-exists", "-h", env["PGHOST"], "-p", env["PGPORT"], "-U", env["PGUSER"], env["PGDATABASE"]],
+            check=True, env=env
+        )
+        subprocess.run(
+            ["createdb", "-h", env["PGHOST"], "-p", env["PGPORT"], "-U", env["PGUSER"], env["PGDATABASE"]],
+            check=True, env=env
+        )
+
+        # restore from .dump
+        subprocess.run(
+            ["pg_restore", "-h", env["PGHOST"], "-p", env["PGPORT"], "-U", env["PGUSER"], "-d", env["PGDATABASE"], str(backup_file)],
+            check=True, env=env
+        )
+
+        return {"status": "ok", "restored": file_name}
+
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(500, detail=f"restore failed: {e}")
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
 # Test ping if server is running and recieving
 @app.get("/ping")
@@ -55,7 +129,9 @@ async def stop_session():
     db: Database = app.state.db
     await db.end_session()
 
-    return {"message": f"Current Session Ended"}
+    msg = try_backup()
+
+    return {"message": f"Current Session Ended", "backup": msg}
   except Exception as e:
 
     print(f"Failed to stop the current session: {e}", flush=True)

@@ -15,7 +15,7 @@ services:
       volumes:
         - ./postgres/data:/var/lib/postgresql/data
         - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-        - ./database/wal_archive:/var/lib/postgresql/wal_archive  
+        - ./db_backups:/var/lib/postgresql/wal_archive  
 
   mqtt-broker:
     image: eclipse-mosquitto:2
@@ -30,31 +30,38 @@ services:
     build: .
     container_name: fastapi-app
     env_file:
-    - .env  
-    ports:
-      - "8000:8000"
-      - "5001:5001" # For robot
-    depends_on:
-      - mqtt-broker
+      - .env
     environment:
+      # existing
       - MQTT_HOST=mqtt-broker
       - ROBOT_TCP_PORT=5001
       - MQTT_PORT=1883
+      - PGHOST=database
+      - PGPORT=5432
+      - PGUSER=${DB_USER}
+      - PGPASSWORD=${DB_PASSWORD}
+      - PGDATABASE=${DB_NAME}
+    ports:
+      - "8000:8000"
+      - "5001:5001"
+    volumes:
+      - ./db_backups:/db_backups
+    depends_on:
+      - database                 
+      - mqtt-broker
+
   
   ntp:
     image: cturra/ntp:latest
     container_name: ntp
     restart: unless-stopped
     ports:
-      - "123:123/udp"                  # expose NTP to your LAN
+      - "123:123/udp"
     environment:
-      - TZ=America/Chicago             # optional but nice to set
-      # Comma-separated, no spaces. Omit to use default (time.cloudflare.com)
+      - TZ=America/Chicago
       - NTP_SERVERS=time1.google.com,time2.google.com,time3.google.com,time4.google.com
-      # If *all* upstreams support NTS, you can enable this:
-      # - ENABLE_NTS=true
-    read_only: true                    # recommended hardening
-    tmpfs:                             # required when read_only
+    read_only: true
+    tmpfs:                             
       - /etc/chrony:rw,mode=1750
       - /run/chrony:rw,mode=1750
       - /var/lib/chrony:rw,mode=1750

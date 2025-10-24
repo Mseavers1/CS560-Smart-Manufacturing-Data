@@ -1,5 +1,8 @@
 import os, asyncpg
 from ntp_facade_smr import TimeBrokerFacade
+from pathlib import Path
+from datetime import datetime, timezone
+import subprocess
 
 class SessionNotStarted(Exception):
 
@@ -29,7 +32,7 @@ class Database:
         self.pool = pool
         self.devices = {}
         self.current_session_id = None
-        self.history = []
+        self.history = set()
 
     def get_time(self):
         try:
@@ -40,6 +43,27 @@ class Database:
         except(ValueError, IOError) as e:
             print("error")
             print (e)
+
+    def create_backup(self):
+        backup_dir = Path("/db_backups")
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        ts = datetime.fromtimestamp(self.get_time(), tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+        db = os.environ["PGDATABASE"]
+        out = backup_dir / f"{db}_{ts}.dump"
+
+        cmd = [
+            "pg_dump",
+            "-h", os.environ.get("PGHOST", "database"),
+            "-p", os.environ.get("PGPORT", "5432"),
+            "-U", os.environ["PGUSER"],
+            "-d", db,
+            "-F", "c",
+            "-f", str(out),
+        ]
+        env = {**os.environ, "PGPASSWORD": os.environ["PGPASSWORD"]}
+        subprocess.run(cmd, check=True, env=env)
+        return str(out)
 
     @classmethod
     async def create(cls, min_size=1, max_size=10):
@@ -64,6 +88,9 @@ class Database:
         )
 
         return cls(pool)
+
+    async def retreive_history():
+        pass
     
     async def get_or_create_device_id(self, device_label, category, ip="0.0.0.0") -> int:
         
@@ -153,37 +180,44 @@ class Database:
                 )
 
     # Insert into session device
-    async def is_in_session_device(self, device_id, session_id): 
+    async def is_in_session_device(self, device_id, session_id):
 
+        # Check cache
         if (device_id, session_id) in self.history:
             return True
 
         async with self.pool.acquire() as conn:
 
-            found = await conn.fetchval(
-                "SELECT device_id FROM session_device WHERE device_id = $1 AND session_id = $2",
+            return await conn.fetchval(
+                "SELECT 1 FROM session_device WHERE device_id=$1 AND session_id=$2",
                 device_id, session_id
-            )
-
-        return found is not None
+            ) is not None
 
     # Insert into session device
     async def insert_session_device(self, device_id): 
 
-        # Check to make sure pair does not already exist
-        if await self.is_in_session_device(device_id, self.current_session_id):
+        session_id = self.current_session_id
+
+        # Check if already inserted
+        if await self.is_in_session_device(device_id, session_id):
             return
 
+        # Insert
         async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO session_device (device_id, session_id)
+                VALUES ($1, $2)
+                ON CONFLICT (device_id, session_id) DO NOTHING
+                RETURNING device_id
+                """,
+                device_id, session_id
+            )
 
-            async with conn.transaction():
-
-                await conn.execute(
-                    "INSERT INTO session_device (device_id, session_id) VALUES ($1, $2)",
-                    device_id, self.current_session_id
-                )
+        # Update cache
+        if row is not None:
+            self.history.add((device_id, session_id))
         
-        self.history.append((device_id, self.current_session_id))
 
     # Return the device_id if found or None 
     async def check_device(self, device_label) -> int | None:
