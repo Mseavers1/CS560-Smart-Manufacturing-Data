@@ -168,21 +168,19 @@ async def handle_sensors(client, topic, payload, qos, prop):
 
     await db.insert_imu_data(
       device_label=device_label,
-      dev_id = msg[0],
       recorded_at = float(msg[1]), 
-      other_time = msg[2], 
-      accel_x = float(msg[3]), 
-      accel_y = float(msg[4]), 
-      accel_z = float(msg[5]), 
-      gryo_x = float(msg[6]), 
-      gryo_y = float(msg[7]), 
-      gryo_z = float(msg[8]), 
-      mag_x = float(msg[9]), 
-      mag_y = float(msg[10]), 
-      mag_z = float(msg[11]), 
-      yaw = float(msg[12]), 
-      pitch = float(msg[13]), 
-      roll = float(msg[14])
+      accel_x = float(msg[2]), 
+      accel_y = float(msg[3]), 
+      accel_z = float(msg[4]), 
+      gryo_x = float(msg[5]), 
+      gryo_y = float(msg[6]), 
+      gryo_z = float(msg[7]), 
+      mag_x = float(msg[8]), 
+      mag_y = float(msg[9]), 
+      mag_z = float(msg[10]), 
+      yaw = float(msg[11]), 
+      pitch = float(msg[12]), 
+      roll = float(msg[13])
     )
 
   except Exception as e:

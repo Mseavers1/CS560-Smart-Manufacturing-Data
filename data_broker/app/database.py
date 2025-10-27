@@ -136,7 +136,7 @@ class Database:
                 )
 
 
-    async def insert_imu_data(self, device_label, dev_id, recorded_at, other_time, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll):
+    async def insert_imu_data(self, device_label, recorded_at, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll):
 
         session_id = self.current_session_id
 
