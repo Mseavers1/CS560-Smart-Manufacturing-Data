@@ -89,8 +89,63 @@ class Database:
 
         return cls(pool)
 
-    async def retreive_history():
-        pass
+    async def retrieve_imu(self, session_label):
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT imu.*
+                FROM imu_measurement AS imu
+                JOIN session AS s ON imu.session_id = s.id
+                WHERE s.label = $1
+            """, session_label)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
+    
+    async def retrieve_camera(self, session_id):
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT img.*
+                FROM image_detection AS img
+                JOIN session AS s ON img.session_id = s.id
+                WHERE s.label = $1
+            """, session_label)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
+
+    async def retrieve_robot(self, session_id): 
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT robt.*
+                FROM robot AS robt
+                JOIN session AS s ON robt.session_id = s.id
+                WHERE s.label = $1
+            """, session_label)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
+    
+    async def retrieve_sessions(self): 
+        
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT label
+                FROM session
+            """)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
     
     async def get_or_create_device_id(self, device_label, category, ip="0.0.0.0") -> int:
         

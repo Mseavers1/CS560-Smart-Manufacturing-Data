@@ -109,17 +109,70 @@ def load_backup(file_name: str):
 def ping():
   return {"status": "ok"}
 
+@app.get("/sessions")
+async def get_sessions():
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_sessions()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull sessions '{label}': {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/imu/{label}")
+async def get_imu(label: str):
+
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_imu(label)
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull imu data from session '{label}': {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+@app.get("/camera/{label}")
+async def get_camera(label: str):
+
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_camera(label)
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull camera data from session '{label}': {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+@app.get("/robot/{label}")
+async def get_robot(label: str):
+
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_robot(label)
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull robot data from session '{label}': {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+
 @app.get("/session/start/{label}")
 async def start_session(label: str):
     try:
         db: Database = app.state.db
         await db.create_session(label=label)
 
-        return {"message": f"Session started with label: {label}"}
+        return {"message": f"Session started with label: {label}", "success": True}
     except Exception as e:
         print(f"Failed to start session '{label}': {e}", flush=True)
 
-        return {"error": str(e)}
+        return {"error": str(e), "success": False}
 
 @app.get("/session/stop")
 async def stop_session():
@@ -131,12 +184,12 @@ async def stop_session():
 
     msg = try_backup()
 
-    return {"message": f"Current Session Ended", "backup": msg}
+    return {"message": f"Current Session Ended", "backup": msg, "success": True}
   except Exception as e:
 
     print(f"Failed to stop the current session: {e}", flush=True)
 
-    return {"error": str(e)}
+    return {"error": str(e), "success": False}
 
 @app.on_event("startup")
 async def startup():
@@ -168,20 +221,21 @@ async def handle_sensors(client, topic, payload, qos, prop):
 
     await db.insert_imu_data(
       device_label=device_label,
-      recorded_at = float(msg[1]), 
-      accel_x = float(msg[2]), 
-      accel_y = float(msg[3]), 
-      accel_z = float(msg[4]), 
-      gryo_x = float(msg[5]), 
-      gryo_y = float(msg[6]), 
-      gryo_z = float(msg[7]), 
-      mag_x = float(msg[8]), 
-      mag_y = float(msg[9]), 
-      mag_z = float(msg[10]), 
-      yaw = float(msg[11]), 
-      pitch = float(msg[12]), 
-      roll = float(msg[13])
+      recorded_at = float(msg[0]), 
+      accel_x = float(msg[1]), 
+      accel_y = float(msg[2]), 
+      accel_z = float(msg[3]), 
+      gryo_x = float(msg[4]), 
+      gryo_y = float(msg[5]), 
+      gryo_z = float(msg[6]), 
+      mag_x = float(msg[7]), 
+      mag_y = float(msg[8]), 
+      mag_z = float(msg[9]), 
+      yaw = float(msg[10]), 
+      pitch = float(msg[11]), 
+      roll = float(msg[12])
     )
+    print(f"Successful store")
 
   except Exception as e:
     print(f"DB insert failed for topic={topic}: {e}", flush=True)

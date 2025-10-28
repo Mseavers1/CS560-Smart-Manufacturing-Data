@@ -16,7 +16,8 @@ services:
         - ./postgres/data:/var/lib/postgresql/data
         - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
         - ./db_backups:/var/lib/postgresql/wal_archive  
-
+        # - /mnt/nas/pgdata:/var/lib/postgresql/data
+        # - /mnt/nas/wal:/var/lib/postgresql/wal_archive
   mqtt-broker:
     image: eclipse-mosquitto:2
     container_name: mqtt-broker
