@@ -6,3 +6,5 @@ typer==0.17.4
 typer-slim==0.17.4
 asyncpg~=0.29
 ntp-facade-smr==1.1.0
+psutil==7.1.2
+Jinja2==3.1.6

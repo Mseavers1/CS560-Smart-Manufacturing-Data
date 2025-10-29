@@ -104,7 +104,7 @@ class Database:
 
         return data
     
-    async def retrieve_camera(self, session_id):
+    async def retrieve_camera(self, session_label):
         
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
@@ -119,7 +119,7 @@ class Database:
 
         return data
 
-    async def retrieve_robot(self, session_id): 
+    async def retrieve_robot(self, session_label): 
         
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
@@ -146,6 +146,7 @@ class Database:
         data = [dict(r) for r in rows]
 
         return data
+
     
     async def get_or_create_device_id(self, device_label, category, ip="0.0.0.0") -> int:
         
@@ -169,7 +170,7 @@ class Database:
 
         return device_id
 
-    async def insert_robot_data(self, ts_str, ts_int, recorded_at, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, received_utc):
+    async def insert_robot_data(self, ts_str, ts_int, recorded_at, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r):
         
         session_id = self.current_session_id
 
@@ -187,7 +188,7 @@ class Database:
 
                 await conn.execute(
                     "INSERT INTO robot (ts_epoch, joint_1, joint_2, joint_3, joint_4, joint_5, joint_6, x, y, z, w, p, r, recorded_at, ingested_at, device_id, session_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
-                    received_utc, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at, self.get_time(), device_id, self.current_session_id
+                    ts_int, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at, self.get_time(), device_id, self.current_session_id
                 )
 
 
