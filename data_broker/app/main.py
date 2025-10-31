@@ -490,13 +490,14 @@ async def stop_session():
 
 @app.on_event("startup")
 async def startup():
+    # DB + broadcast
+    app.state.db = await Database.create()
+    app.state.broadcast_robot_event = broadcast_robot_event
 
-  # Start up DB connection
-  app.state.db = await Database.create()
-  app.state.broadcast_robot_event = broadcast_robot_event
-  # Start up TCP listener
-  port = int(os.getenv("ROBOT_TCP_PORT", "5001"))
-  app.state.tcp_server = await start_tcp_server(app, port=port)
+    # TCP listener
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("ROBOT_TCP_PORT", "5001"))
+    app.state.tcp_server = await start_tcp_server(app, host=host, port=port)
 
 @app.on_event("shutdown")
 async def shutdown():

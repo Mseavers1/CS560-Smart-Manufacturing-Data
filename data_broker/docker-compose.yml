@@ -51,6 +51,15 @@ services:
       - database                 
       - mqtt-broker
 
+  web:
+      build:
+        context: ./web
+      container_name: web-frontend
+      ports:
+        - "80:80"
+      depends_on:
+        - fastapi-app
+
   
   ntp:
     image: cturra/ntp:latest

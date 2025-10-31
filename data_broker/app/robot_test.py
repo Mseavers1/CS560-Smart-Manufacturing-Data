@@ -1,6 +1,6 @@
 import socket
 
-HOST = "0.0.0.0"  # or external IP of your server
+HOST = "192.168.1.76"  # or external IP of your server
 PORT = 5001
 
 message = (
