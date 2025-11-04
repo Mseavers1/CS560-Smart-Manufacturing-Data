@@ -1,5 +1,6 @@
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List
+import json
 
 # Created in junction using GPT
 class ConnectionManager:
@@ -17,17 +18,14 @@ class ConnectionManager:
         if ws in self.active:
             self.active.remove(ws)
 
-    async def broadcast(self, message: str):
-        dead = []
+    async def broadcast_json(self, payload: dict):
 
+        msg = json.dumps(payload)
         for ws in self.active:
             try:
-                await ws.send_text(message)
+                await ws.send_text(msg)
             except Exception:
-                dead.append(ws)
-
-        for ws in dead:
-            self.disconnect(ws)
+                self.disconnect(ws)
 
 camera_manager = ConnectionManager()
 imu_manager = ConnectionManager()

@@ -39,47 +39,83 @@ export default function DataDashboard() {
         }
     };
 
-    function CameraMessage() {
+    function MessageWB({type}) {
         const [lines, setLines] = useState([]);
         const boxRef = useRef(null);
 
         useEffect(() => {
-            const ws = new WebSocket("ws://192.168.1.76:8000/ws/camera");
+            const ws = new WebSocket("ws://192.168.1.76:8000/ws/" + type);
 
             ws.onmessage = (event) => {
-            setLines((prev) => {
-                const next = [...prev, event.data];
-                return next.length > 500 ? next.slice(-500) : next;
-            });
+                try {
+                    const data = JSON.parse(event.data); 
+                    if (data && data.type && data.text) {
+                        setLines((prev) => {
+                            const next = [...prev, data];
+                            return next.length > 500 ? next.slice(-500) : next;
+                        });
+                    } else {
+
+                        setLines((prev) => {
+                            const next = [...prev, { text: event.data, type: "normal" }];
+                            return next.length > 500 ? next.slice(-500) : next;
+                        });
+                    }
+                } catch (err) {
+
+                    setLines((prev) => {
+                        const next = [...prev, { text: event.data, type: "normal" }];
+                        return next.length > 500 ? next.slice(-500) : next;
+                    });
+                }
             };
 
-            ws.onopen  = () => setLines((p) => [...p, "[client] connected"]);
-            ws.onclose = () => setLines((p) => [...p, "[client] disconnected"]);
-            ws.onerror = () => setLines((p) => [...p, "[client] error"]);
+
+            ws.onopen = () =>
+                setLines((p) => [...p, { text: "[WebSocket] connected", type: "info" }]);
+
+            ws.onclose = () =>
+                setLines((p) => [...p, { text: "[WebSocket] disconnected", type: "info" }]);
+
+            ws.onerror = () =>
+                setLines((p) => [...p, { text: "[WebSocket] error", type: "error" }]);
 
             return () => ws.close();
         }, []);
 
         useEffect(() => {
-            boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "auto" });
+            boxRef.current?.scrollTo({
+                top: boxRef.current.scrollHeight,
+                behavior: "auto",
+            });
         }, [lines]);
 
         return (
             <div className="bg-white rounded-lg shadow p-5">
-            <h3 className="text-lg font-semibold mb-2">Camera Messages</h3>
-            <div
-                ref={boxRef}
-                className="bg-gray-900 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto text-left w-full"
-            >
-                {lines.map((line, i) => (
-                <p key={i} className="whitespace-pre-wrap break-words w-full text-green-400">
-                    {line}
-                </p>
-                ))}
-            </div>
+                <h3 className="text-lg font-semibold mb-2"> {type} Messages</h3>
+                <div
+                    ref={boxRef}
+                    className="bg-gray-900 text-green-400 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto text-left w-full"
+                >
+                    {lines.map((line, i) => (
+                        <p
+                            key={i}
+                            className={`whitespace-pre-wrap break-words w-full ${
+                                line.type === "error"
+                                    ? "text-red-400"
+                                    : line.type === "info"
+                                    ? "text-yellow-400"
+                                    : "text-green-400"
+                            }`}
+                        >
+                            {line.text}
+                        </p>
+                    ))}
+                </div>
             </div>
         );
     }
+
 
 
 
@@ -113,31 +149,10 @@ export default function DataDashboard() {
 
                 <div className='flex flex-row items-center gap-5'>
                     
-                    <CameraMessage/>                    
+                    <MessageWB type="camera"/>
+                    <MessageWB type="imu"/>
+                    <MessageWB type="robot"/>           
 
-                    <div className="bg-white rounded-lg shadow p-5">
-                        <h3 className="text-lg font-semibold mb-2">IMU Messages</h3>
-                        <div className="bg-gray-900 text-green-400 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto text-left w-full">
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:32] Camera 1 initialized</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:33] Streaming started (1920x1080 @ 60fps)</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:35] Frame captured (latency: 8ms)</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:36] Frame captured (latency: 9ms)</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:37] Warning: dropped frame</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:38] Frame captured (latency: 10ms)</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-lg shadow p-5">
-                        <h3 className="text-lg font-semibold mb-2">Robot Messages</h3>
-                        <div className="bg-gray-900 text-green-400 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto text-left w-full">
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:32] Camera 1 initialized</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:33] Streaming started (1920x1080 @ 60fps)</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:35] Frame captured (latency: 8ms)</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:36] Frame captured (latency: 9ms)</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:37] Warning: dropped frame</p>
-                            <p className='whitespace-pre-wrap break-words w-full'>[12:01:38] Frame captured (latency: 10ms)</p>
-                        </div>
-                    </div>
                 </div>
 
                 <div className="bg-white rounded-lg shadow p-5">

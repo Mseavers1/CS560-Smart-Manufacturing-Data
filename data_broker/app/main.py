@@ -406,10 +406,17 @@ async def imu_ws(websocket: WebSocket):
         imu_manager.disconnect(websocket)
         print("Client disconnected. Active:", len(imu_manager.active))
 
-@app.get("/send/{msg}")
-async def send(msg: str):
-    await camera_manager.broadcast(msg)
+@app.get("/send/{msg_type}/{msg}")
+async def send_message(msg_type: str, msg: str):
+    if msg_type not in ["normal", "info", "error"]:
+        return {"ok": False, "error": "invalid type"}
+
+    await camera_manager.broadcast_json({
+        "type": msg_type,
+        "text": msg
+    })
     return {"ok": True}
+
 
 @app.get("/backup/list")
 def list_backups():
@@ -603,11 +610,22 @@ async def handle_sensors(client, topic, payload, qos, prop):
   #msg = f"{datetime.utcnow().isoformat()} | {topic} | {payload.decode(errors='ignore')}"
   #print(msg, flush=True)
 
+
+  await imu_manager.broadcast_json({
+        "type": "normal",
+        "text": f"[{datetime.fromtimestamp(app.state.db.get_time()).strftime("%Y-%m-%d %H:%M:%S")}] Message Recieved"
+  })
+
   try:
     db: Database = app.state.db
     loggers.cur_imu_logger.info(f"IMU {device_label} recieved msg: {msg}")
     
     await mqtt_event_queue.put(msg)
+
+    await imu_manager.broadcast_json({
+        "type": "normal",
+        "text": f"[{datetime.fromtimestamp(db.get_time()).strftime("%Y-%m-%d %H:%M:%S")}] Message Stored"
+  })
 
     await db.insert_imu_data(
       device_label=device_label,
@@ -631,6 +649,11 @@ async def handle_sensors(client, topic, payload, qos, prop):
     print(f"DB insert failed for topic={topic}: {e}", flush=True)
     loggers.cur_imu_logger.error(f"IMU failed to recieve with error: {e}")
 
+    await imu_manager.broadcast_json({
+        "type": "error",
+        "text": f"[{datetime.fromtimestamp(db.get_time()).strftime("%Y-%m-%d %H:%M:%S")}] Message failed to Store: {e}"
+    })
+
 @mqtt.subscribe("camera/#")
 async def handle_camera(client, topic, payload, qos, prop):
 
@@ -641,11 +664,21 @@ async def handle_camera(client, topic, payload, qos, prop):
 
   #print(msg, flush=True)
 
+  await camera_manager.broadcast_json({
+        "type": "normal",
+        "text": f"[{app.state.db.get_time()}] Message Recieved"
+  })
+
   try:
     db: Database = app.state.db
     loggers.cur_camera_logger.info(f"Camera {device_label} recieved msg: {msg}")
 
     await mqtt_event_queue.put(msg)
+
+    await camera_manager.broadcast_json({
+        "type": "normal",
+        "text": f"[{db.get_time()}] Message Stored"
+    })
 
     await db.insert_camera_data(
       device_label = device_label,
@@ -664,6 +697,10 @@ async def handle_camera(client, topic, payload, qos, prop):
   except Exception as e:
     print(f"DB insert failed for topic={topic}: {e}", flush=True)
     loggers.cur_camera_logger.error(f"IMU failed to recieve with error: {e}")
+    await camera_manager.broadcast_json({
+        "type": "error",
+        "text": f"Failed to store: {e}"
+    })
 
 @mqtt.on_message()
 async def message(client, topic, payload, qos, prop):

@@ -4,6 +4,7 @@ import asyncio
 from typing import Optional, Tuple
 from datetime import datetime
 from . import loggers
+from .connection_manager import camera_manager, imu_manager, robot_manager
 
 async def handle_robot(app, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     peer: Optional[Tuple[str, int]] = writer.get_extra_info("peername")
@@ -32,10 +33,27 @@ async def handle_robot(app, reader: asyncio.StreamReader, writer: asyncio.Stream
                     continue
                 print(f"[robot-tcp] {text}", flush=True)
 
+                await robot_manager.broadcast_json({
+                "type": "normal",
+                "text": "Message Recieved"
+                })
+
                 # Parse and send to DB
-                parts = [p.strip() for p in text.split(",")]
-                db: Database = app.state.db
-                await db.insert_robot_row(parts[1], parts[2], parts[3], parts[4], parts[5], parts[6], parts[7], parts[8], parts[9], parts[10], parts[11], parts[12], parts[13], db.get_time())
+                try:
+                    parts = [p.strip() for p in text.split(",")]
+                    db: Database = app.state.db
+                    await db.insert_robot_data(int(parts[1]), float(parts[2]), float(parts[3]), float(parts[4]), float(parts[5]), float(parts[6]), float(parts[7]), float(parts[8]), float(parts[9]), float(parts[10]), float(parts[11]), float(parts[12]), float(parts[13]), db.get_time())
+
+                    await robot_manager.broadcast_json({
+                    "type": "normal",
+                    "text": "Message Stored"
+                    })
+                    
+                except Exception as e:
+                    await robot_manager.broadcast_json({
+                    "type": "error",
+                    "text": f"Message failed to store: {e}"
+                    })
 
                 try:
                     await app.state.broadcast_robot_event(
