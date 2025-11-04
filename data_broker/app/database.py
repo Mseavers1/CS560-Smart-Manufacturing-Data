@@ -170,7 +170,7 @@ class Database:
 
         return device_id
 
-    async def insert_robot_data(self, ts_str, ts_int, recorded_at, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r):
+    async def insert_robot_data(self, ts_int, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at):
         
         session_id = self.current_session_id
 

@@ -3,6 +3,7 @@ import os
 import asyncio
 from typing import Optional, Tuple
 from datetime import datetime
+from . import loggers
 
 async def handle_robot(app, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     peer: Optional[Tuple[str, int]] = writer.get_extra_info("peername")
@@ -31,30 +32,28 @@ async def handle_robot(app, reader: asyncio.StreamReader, writer: asyncio.Stream
                     continue
                 print(f"[robot-tcp] {text}", flush=True)
 
-                # TODO: parse/insert to DB if desired
-                # parts = [p.strip() for p in text.split(",")]
-                # db: Database = app.state.db
-                # await db.insert_robot_row(...)
+                # Parse and send to DB
+                parts = [p.strip() for p in text.split(",")]
+                db: Database = app.state.db
+                await db.insert_robot_row(parts[1], parts[2], parts[3], parts[4], parts[5], parts[6], parts[7], parts[8], parts[9], parts[10], parts[11], parts[12], parts[13], db.get_time())
 
-                # (optional) echo to UI stream
                 try:
                     await app.state.broadcast_robot_event(
                         f'{{"type":"row","text":"{text}","ts":"{datetime.utcnow().isoformat()}Z"}}'
                     )
-                except Exception:
-                    pass
+
+                    loggers.cur_robot_logger.info(f"Message recieved: {text}")
+                except Exception as e:
+                    loggers.cur_robot_logger.error(f"Error: {e}")
     finally:
         try:
             writer.close()
             await writer.wait_closed()
-        except Exception:
-            pass
+            loggers.cur_robot_logger.info(f"Writer Closed")
+        except Exception as e:
+            loggers.cur_robot_logger.error(f"Error: {e}")
 
 async def start_tcp_server(app, host: Optional[str] = None, port: int = 5001):
-    """
-    Start a TCP server that listens for robot lines.
-    Binds to 0.0.0.0 by default so it's reachable from the LAN.
-    """
     host = host or os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("ROBOT_TCP_PORT", port))
     server = await asyncio.start_server(lambda r, w: handle_robot(app, r, w), host=host, port=port)

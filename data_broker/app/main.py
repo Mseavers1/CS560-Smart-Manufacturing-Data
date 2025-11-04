@@ -20,7 +20,7 @@ import psutil
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi_mqtt import FastMQTT, MQTTConfig
 import os
@@ -29,7 +29,11 @@ from typing import List, AsyncGenerator, Dict, Any, Optional, Set
 from .tcp_server import handle_robot, start_tcp_server
 from pathlib import Path
 import subprocess
+from fastapi.middleware.cors import CORSMiddleware
 from collections import deque
+import logging
+from . import loggers
+from .connection_manager import camera_manager, imu_manager, robot_manager
 
 mqtt_config = MQTTConfig(
     host="host.docker.internal",
@@ -37,8 +41,29 @@ mqtt_config = MQTTConfig(
     keepalive=60,
 )
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://192.168.1.76",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://192.168.1.76:5173",
+        "http://192.168.1.76:3000",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
+
+
 mqtt = FastMQTT(config=mqtt_config)
 mqtt.init_app(app)
+
+web_camera_messages = []
+web_imu_messages = []
+web_robot_messages = []
+web_global_errors = []
 
 ### ------------------------------------------------------ ###
 
@@ -341,6 +366,51 @@ def try_backup():
 
     raise HTTPException(status_code=500, detail=f"Backup failed: {e}")
 
+@app.websocket("/ws/camera")
+async def camera_ws(websocket: WebSocket):
+    await camera_manager.connect(websocket)
+    print("Client connected. Active:", len(camera_manager.active))
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        print("WebSocket error:", e)
+    finally:
+        camera_manager.disconnect(websocket)
+        print("Client disconnected. Active:", len(camera_manager.active))
+
+
+@app.websocket("/ws/robot")
+async def robot_ws(websocket: WebSocket):
+    await robot_manager.connect(websocket)
+    print("Client connected. Active:", len(robot_manager.active))
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        print("WebSocket error:", e)
+    finally:
+        robot_manager.disconnect(websocket)
+        print("Client disconnected. Active:", len(robot_manager.active))
+
+@app.websocket("/ws/imu")
+async def imu_ws(websocket: WebSocket):
+    await imu_manager.connect(websocket)
+    print("Client connected. Active:", len(imu_manager.active))
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        print("WebSocket error:", e)
+    finally:
+        imu_manager.disconnect(websocket)
+        print("Client disconnected. Active:", len(imu_manager.active))
+
+@app.get("/send/{msg}")
+async def send(msg: str):
+    await camera_manager.broadcast(msg)
+    return {"ok": True}
+
 @app.get("/backup/list")
 def list_backups():
 
@@ -461,13 +531,24 @@ async def get_robot(label: str):
 
 @app.get("/session/start/{label}")
 async def start_session(label: str):
+
+    loggers.create_loggers()
+
     try:
         db: Database = app.state.db
         await db.create_session(label=label)
 
+        loggers.cur_camera_logger.info(f"Camera session ready with label: {label}")
+        loggers.cur_imu_logger.info(f"IMU session ready with label: {label}")
+        loggers.cur_robot_logger.info(f"Robot session ready with label: {label}")
+
         return {"message": f"Session started with label: {label}", "success": True}
     except Exception as e:
         print(f"Failed to start session '{label}': {e}", flush=True)
+
+        loggers.cur_camera_logger.error(f"Camera session failed to start with label: {label}. Error: {e}")
+        loggers.cur_imu_logger.error(f"IMU session failed to start with label: {label}. Error: {e}")
+        loggers.cur_robot_logger.error(f"Robot session failed to start with label: {label}. Error: {e}")
 
         return {"error": str(e), "success": False}
 
@@ -479,12 +560,20 @@ async def stop_session():
     db: Database = app.state.db
     await db.end_session()
 
+    loggers.cur_camera_logger.info(f"Camera session ended.")
+    loggers.cur_imu_logger.info(f"IMU session ended.")
+    loggers.cur_robot_logger.info(f"Robot session ended.")
+
     msg = try_backup()
 
     return {"message": f"Current Session Ended", "backup": msg, "success": True}
   except Exception as e:
 
     print(f"Failed to stop the current session: {e}", flush=True)
+
+    loggers.cur_camera_logger.error(f"Camera session failed to stop with label: {label}. Error: {e}")
+    loggers.cur_imu_logger.error(f"IMU session failed to stop with label: {label}. Error: {e}")
+    loggers.cur_robot_logger.error(f"Robot session failed to stop with label: {label}. Error: {e}")
 
     return {"error": str(e), "success": False}
 
@@ -516,6 +605,7 @@ async def handle_sensors(client, topic, payload, qos, prop):
 
   try:
     db: Database = app.state.db
+    loggers.cur_imu_logger.info(f"IMU {device_label} recieved msg: {msg}")
     
     await mqtt_event_queue.put(msg)
 
@@ -539,6 +629,7 @@ async def handle_sensors(client, topic, payload, qos, prop):
 
   except Exception as e:
     print(f"DB insert failed for topic={topic}: {e}", flush=True)
+    loggers.cur_imu_logger.error(f"IMU failed to recieve with error: {e}")
 
 @mqtt.subscribe("camera/#")
 async def handle_camera(client, topic, payload, qos, prop):
@@ -552,6 +643,7 @@ async def handle_camera(client, topic, payload, qos, prop):
 
   try:
     db: Database = app.state.db
+    loggers.cur_camera_logger.info(f"Camera {device_label} recieved msg: {msg}")
 
     await mqtt_event_queue.put(msg)
 
@@ -571,6 +663,7 @@ async def handle_camera(client, topic, payload, qos, prop):
 
   except Exception as e:
     print(f"DB insert failed for topic={topic}: {e}", flush=True)
+    loggers.cur_camera_logger.error(f"IMU failed to recieve with error: {e}")
 
 @mqtt.on_message()
 async def message(client, topic, payload, qos, prop):

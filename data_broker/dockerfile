@@ -1,6 +1,5 @@
 FROM python:3.13
 
-# add Postgres client (pg_dump, psql)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client \
  && rm -rf /var/lib/apt/lists/*
