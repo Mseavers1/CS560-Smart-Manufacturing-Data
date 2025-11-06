@@ -7,14 +7,6 @@ from . import loggers
 from .connection_manager import camera_manager, imu_manager, robot_manager
 
 async def handle_robot(app, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    peer: Optional[Tuple[str, int]] = writer.get_extra_info("peername")
-    try:
-        # announce to UI
-        await app.state.broadcast_robot_event(
-            f'{{"type":"robot_connected","peer":"{peer[0]}:{peer[1] if peer else 0}","ts":"{datetime.utcnow().isoformat()}Z"}}'
-        )
-    except Exception:
-        pass
 
     try:
         # CRLF/CR/LF tolerant line reader
@@ -54,15 +46,6 @@ async def handle_robot(app, reader: asyncio.StreamReader, writer: asyncio.Stream
                     "type": "error",
                     "text": f"Message failed to store: {e}"
                     })
-
-                try:
-                    await app.state.broadcast_robot_event(
-                        f'{{"type":"row","text":"{text}","ts":"{datetime.utcnow().isoformat()}Z"}}'
-                    )
-
-                    loggers.cur_robot_logger.info(f"Message recieved: {text}")
-                except Exception as e:
-                    loggers.cur_robot_logger.error(f"Error: {e}")
     finally:
         try:
             writer.close()

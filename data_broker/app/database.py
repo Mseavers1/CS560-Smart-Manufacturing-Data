@@ -3,6 +3,7 @@ from ntp_facade_smr import TimeBrokerFacade
 from pathlib import Path
 from datetime import datetime, timezone
 import subprocess
+from package.client import Client
 
 class SessionNotStarted(Exception):
 
@@ -33,6 +34,10 @@ class Database:
         self.devices = {}
         self.current_session_id = None
         self.history = set()
+
+        robot_client = Client("192.168.1.76", Client.ROBOT, "minipc2")
+        imu_client =  Client("192.168.1.76", Client.IMU, "minipc2")
+        camera_client =  Client("192.168.1.76", Client.CAMERA, "minipc2")
 
     def get_time(self):
         try:

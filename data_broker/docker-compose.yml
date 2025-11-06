@@ -47,6 +47,7 @@ services:
       - "5001:5001"
     volumes:
       - ./db_backups:/db_backups
+      - ./logs:/app/log
     depends_on:
       - database                 
       - mqtt-broker

@@ -1,10 +1,46 @@
 import { useEffect, useRef, useState } from "react";
+import MessageWB from "./components/MessageWB";
+import StatusIndicator from "./components/StatusIndicator";
 
 export default function DataDashboard() {
 
     const [activeSession, setActiveSession] = useState(false);
+    const [isStopping, setIsStopping] = useState(false);
+
+    useEffect(() => {
+
+        const getStatus = async () => {
+            try {
+            const r = await fetch("http://192.168.1.76:8000/session");
+            const json = await r.json();
+            setActiveSession(json.data);
+            } catch (e) {
+            sendMessage("camera", "error", "An unexpected error has occurred: " + e);
+            }
+        };
+
+        getStatus();
+    }, []);
+
+    const sendMessage = async (dest, type, msg) => {
+        
+        try {
+            await fetch("http://192.168.1.76:8000/send/" + dest, {
+            method: "POST",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ type: type, text: msg })
+            });
+
+        } catch (err) {
+            alert(err)
+        }
+
+    }
 
     const startSession = async () => {
+
+        sendMessage("misc", "info", "Starting new session...")
+
         try {
             const now = new Date();
             const label = "ses_" + now.toISOString();
@@ -13,111 +49,39 @@ export default function DataDashboard() {
             const data = await res.json();
 
             if (data.success) {
-                alert("success")
                 setActiveSession(true);
+                sendMessage("misc", "info", "Session ready");
             } else {
-                alert("failed")
-                alert(data.error)
+                sendMessage("misc", "error", "Failed to start session: " + data.error);
             }
         } catch (err) {
-            alert(err)
+            sendMessage("misc", "error", "An unexpected error has occured: " + err);
         }
     };
 
     const stopSession = async () => {
+
+        sendMessage("misc", "info", "Stopping the current session...");
+        setIsStopping(true);
+
         try {
             const res = await fetch(`http://192.168.1.76:8000/session/stop/`);
             const data = await res.json();
 
             if (data.success) {
+                sendMessage("misc", "info", "Session Stopped");
                 setActiveSession(false);
             } else {
-                
+                sendMessage("misc", "error", "Failed to stop the session: " + data.error);
             }
+
         } catch (err) {
+            sendMessage("misc", "error", "An unexpected error has occured: " + err)
             
+        } finally {
+            setIsStopping(false)
         }
     };
-
-    function MessageWB({type}) {
-        const [lines, setLines] = useState([]);
-        const boxRef = useRef(null);
-
-        useEffect(() => {
-            const ws = new WebSocket("ws://192.168.1.76:8000/ws/" + type);
-
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data); 
-                    if (data && data.type && data.text) {
-                        setLines((prev) => {
-                            const next = [...prev, data];
-                            return next.length > 500 ? next.slice(-500) : next;
-                        });
-                    } else {
-
-                        setLines((prev) => {
-                            const next = [...prev, { text: event.data, type: "normal" }];
-                            return next.length > 500 ? next.slice(-500) : next;
-                        });
-                    }
-                } catch (err) {
-
-                    setLines((prev) => {
-                        const next = [...prev, { text: event.data, type: "normal" }];
-                        return next.length > 500 ? next.slice(-500) : next;
-                    });
-                }
-            };
-
-
-            ws.onopen = () =>
-                setLines((p) => [...p, { text: "[WebSocket] connected", type: "info" }]);
-
-            ws.onclose = () =>
-                setLines((p) => [...p, { text: "[WebSocket] disconnected", type: "info" }]);
-
-            ws.onerror = () =>
-                setLines((p) => [...p, { text: "[WebSocket] error", type: "error" }]);
-
-            return () => ws.close();
-        }, []);
-
-        useEffect(() => {
-            boxRef.current?.scrollTo({
-                top: boxRef.current.scrollHeight,
-                behavior: "auto",
-            });
-        }, [lines]);
-
-        return (
-            <div className="bg-white rounded-lg shadow p-5">
-                <h3 className="text-lg font-semibold mb-2"> {type} Messages</h3>
-                <div
-                    ref={boxRef}
-                    className="bg-gray-900 text-green-400 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto text-left w-full"
-                >
-                    {lines.map((line, i) => (
-                        <p
-                            key={i}
-                            className={`whitespace-pre-wrap break-words w-full ${
-                                line.type === "error"
-                                    ? "text-red-400"
-                                    : line.type === "info"
-                                    ? "text-yellow-400"
-                                    : "text-green-400"
-                            }`}
-                        >
-                            {line.text}
-                        </p>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
-
-
 
     return (
         <div>
@@ -126,7 +90,7 @@ export default function DataDashboard() {
             <div className="fixed top-14 left-0 w-full flex justify-between items-center px-6 py-1 bg-gray-500 text-white shadow z-30">
                 <h2 className="text-base font-medium">Data Dashboard</h2>
 
-                <div className="flex gap-2">
+                <div className="flex gap-4">
                     <button
                     className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={activeSession}
@@ -138,10 +102,12 @@ export default function DataDashboard() {
                     <button
                     className="flex items-center gap-1 text-white bg-red-500 hover:bg-red-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     onClick={() => stopSession()}
-                    disabled={!activeSession}
+                    disabled={!activeSession || isStopping}
                     >
                     Stop Session
                     </button>
+
+                    <StatusIndicator active={activeSession} onMsg="Session Active" offMsg="Session Inactive"/>
                 </div>
             </div>
 
@@ -151,22 +117,11 @@ export default function DataDashboard() {
                     
                     <MessageWB type="camera"/>
                     <MessageWB type="imu"/>
-                    <MessageWB type="robot"/>           
+                    <MessageWB type="robot"/>  
 
                 </div>
 
-                <div className="bg-white rounded-lg shadow p-5">
-                    <h3 className="text-lg font-semibold mb-2">Global Errors</h3>
-                    <div className="bg-gray-900 text-green-400 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto text-left w-full">
-                        <p className='whitespace-pre-wrap break-words w-full'>[12:01:32] Camera 1 initialized</p>
-                        <p className='whitespace-pre-wrap break-words w-full'>[12:01:33] Streaming started (1920x1080 @ 60fps)</p>
-                        <p className='whitespace-pre-wrap break-words w-full'>[12:01:35] Frame captured (latency: 8ms)</p>
-                        <p className='whitespace-pre-wrap break-words w-full'>[12:01:36] Frame captured (latency: 9ms)</p>
-                        <p className='whitespace-pre-wrap break-words w-full'>[12:01:37] Warning: dropped frame</p>
-                        <p className='whitespace-pre-wrap break-words w-full'>[12:01:38] Frame captured (latency: 10ms)</p>
-                    </div>
-                </div>
-
+                <MessageWB type="misc" /> 
 
             </div>
 
