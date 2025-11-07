@@ -214,6 +214,45 @@ def load_backup(file_name: str):
 # def ping():
 #   return {"status": "ok"}
 
+@app.get("/imu/latest")
+async def get_sessions():
+  try:
+    db: Database = app.state.db
+    data = await db.get_latest_imu()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull latest imu: {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/camera/latest")
+async def get_sessions():
+  try:
+    db: Database = app.state.db
+    data = await db.get_latest_camera()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull latest camera: {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/robot/latest")
+async def get_sessions():
+  try:
+    db: Database = app.state.db
+    data = await db.get_latest_robot()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    print(f"Failed to pull latest robot: {e}", flush=True)
+
+    return {"error": str(e), "success": False}
+
+
 @app.get("/sessions")
 async def get_sessions():
   try:

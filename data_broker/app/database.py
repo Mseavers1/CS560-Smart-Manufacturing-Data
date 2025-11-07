@@ -94,6 +94,52 @@ class Database:
 
         return cls(pool)
 
+
+    async def get_latest_imu(self):
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT *
+                FROM imu_measurement
+                ORDER BY recorded_at DESC
+                LIMIT 5
+            """)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
+
+    async def get_latest_camera(self):
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT *
+                FROM image_detection
+                ORDER BY recorded_at DESC
+                LIMIT 5
+            """)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
+
+    async def get_latest_robot(self):
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT *
+                FROM robot
+                ORDER BY recorded_at DESC
+                LIMIT 5
+            """)
+        
+        # Convert to json
+        data = [dict(r) for r in rows]
+
+        return data
+
     async def retrieve_imu(self, session_label):
 
         async with self.pool.acquire() as conn:

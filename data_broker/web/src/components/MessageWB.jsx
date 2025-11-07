@@ -61,6 +61,35 @@
             });
         }, [lines]);
 
+        async function getLatest() {
+            try {
+                const res = await fetch("http://192.168.1.76:8000/" + type + "/latest");
+                const json = await res.json();
+
+                if (json.success) {
+                    
+                    setLines((prev) => {
+
+                    const normalized = json.data.map(item => ({
+                        text: item.text ?? JSON.stringify(item),
+                        type: item.type ?? "normal",
+                        timestamp: item.timestamp ?? "???"
+                    }));
+
+                    const next = [...prev, ...normalized];
+                    return next.length > 500 ? next.slice(-500) : next;
+                });
+
+
+                } else {
+                    
+                }
+
+            } catch (err) {
+                
+            }
+        }
+
         return (
             <div className="bg-white rounded-lg shadow p-5 w-[550px] gap-2">
                 <h3 className="text-lg font-semibold mb-2"> {capitalizeType} Messages</h3>
@@ -90,7 +119,14 @@
 
 
                     <div className="flex flex-row items-center gap-3">
-                        
+
+                        <button
+                            className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            onClick={() => {setRefreshTemp(!refreshTemp)}}
+                            >
+                            Get Latest
+                        </button>
+
                         <button
                             className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             onClick={() => {setRefreshTemp(!refreshTemp)}}

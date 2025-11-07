@@ -2,22 +2,6 @@ version: "3.9"
 
 services:
 
-  database:
-      image: postgres:16
-      container_name: postgres-db
-      restart: unless-stopped
-      environment:
-        POSTGRES_DB: ${DB_NAME}
-        POSTGRES_USER: ${DB_USER}
-        POSTGRES_PASSWORD: ${DB_PASSWORD}
-      ports:
-        - ${DB_PORTS}
-      volumes:
-        - ./postgres/data:/var/lib/postgresql/data
-        - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-        - ./db_backups:/var/lib/postgresql/wal_archive  
-        # - /mnt/nas/pgdata:/var/lib/postgresql/data
-        # - /mnt/nas/wal:/var/lib/postgresql/wal_archive
   mqtt-broker:
     image: eclipse-mosquitto:2
     container_name: mqtt-broker
@@ -37,8 +21,8 @@ services:
       - MQTT_HOST=mqtt-broker
       - ROBOT_TCP_PORT=5001
       - MQTT_PORT=1883
-      - PGHOST=database
-      - PGPORT=5432
+      - PGHOST=192.168.1.111
+      - PGPORT=5433
       - PGUSER=${DB_USER}
       - PGPASSWORD=${DB_PASSWORD}
       - PGDATABASE=${DB_NAME}
@@ -47,9 +31,8 @@ services:
       - "5001:5001"
     volumes:
       - ./db_backups:/db_backups
-      - ./logs:/app/log
-    depends_on:
-      - database                 
+      - ./app/logs:/app/logs
+    depends_on:                
       - mqtt-broker
 
   web:

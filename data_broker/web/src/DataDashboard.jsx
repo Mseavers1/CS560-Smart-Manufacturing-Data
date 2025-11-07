@@ -91,6 +91,13 @@ export default function DataDashboard() {
                 <h2 className="text-base font-medium">Data Dashboard</h2>
 
                 <div className="flex gap-4">
+
+                    <button className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                     onClick={() => window.open("http://192.168.1.111:8080", "_blank")}>
+                        Open Database GUI
+                    </button>
+
+
                     <button
                     className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={activeSession}
