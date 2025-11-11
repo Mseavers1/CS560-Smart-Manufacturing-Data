@@ -13,7 +13,7 @@ BROKER_PORT = 1883
 DEVICE_ID_IMU = "dummy_imu"
 DEVICE_ID_CAMERA = "dummy_camera"
 
-SEND_INTERVAL = 1.0
+SEND_INTERVAL = 0.01
 NUM_SAMPLES = 10
 
 # DATA CREATION
@@ -68,6 +68,7 @@ def create_camera_csv(num_records: int = 1) -> str:
     rotation vectors (rvecx, rvecy, rvecz), and translation vectors (tvecx, tvecy, tvecz).
     Returns a CSV-formatted string (without header).
     """
+    # artificial time creation, not actual NTP grab
     now = pd.Timestamp.now()
     recorded_at = np.arange(num_records) * 33 + int(now.timestamp() * 1000)          # ~30 FPS timestamps
 
@@ -127,12 +128,12 @@ def create_camera_csv_image_path(num_records: int = 1) -> str:
     return df.to_csv(index=False, header=False).strip()
 
 # TEST FUNCTIONS
-def test_imu_client(samples):
+def test_imu_client(samples, id=DEVICE_ID_IMU):
     print("\n[IMU TEST] Starting IMU MQTT test...")
     imu_client = Client(
         broker_ip=BROKER_IP,
         client_type=Client.IMU,
-        device_id=DEVICE_ID_IMU,
+        device_id=id,
         broker_port=BROKER_PORT
     )
 
@@ -149,12 +150,12 @@ def test_imu_client(samples):
         print(f"[IMU ERROR] Disconnect skipped: {e}")
     print("[IMU TEST] Finished sending IMU test data.\n")
 
-def test_camera_client(samples):
+def test_camera_client(samples, id=DEVICE_ID_CAMERA):
     print("[CAMERA TEST] Starting Camera MQTT test...")
     camera_client = Client(
         broker_ip=BROKER_IP,
         client_type=Client.CAMERA,
-        device_id=DEVICE_ID_CAMERA,
+        device_id=id,
         broker_port=BROKER_PORT
     )
 

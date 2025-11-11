@@ -22,7 +22,7 @@ import time
 BROKER_IP = "192.168.1.76"
 BROKER_PORT = 5001
 NUM_RECORDS = 10    
-SEND_INTERVAL = 0.5 
+SEND_INTERVAL = 0.01
 
 # DATA CREATION
 def create_robot_data(num_records: int = 10) -> pd.DataFrame:
@@ -47,7 +47,7 @@ def create_robot_data(num_records: int = 10) -> pd.DataFrame:
     return df
 
 # DATA SENDING
-def test_robot_data(samples: int):
+def test_robot_data(samples, id="ROBOT"):
     """
     Sends each row of the DataFrame as a CSV string over TCP.
     """
