@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import MessageWB from "./components/MessageWB";
 import StatusIndicator from "./components/StatusIndicator";
+import BackupCard from "./components/BackupCard";
 
 export default function DataDashboard() {
 
@@ -84,7 +85,7 @@ export default function DataDashboard() {
     };
 
     return (
-        <div>
+        <div className="h-screen">
             
             {/* 2nd Top Bar -- Turn on and off a session */}
             <div className="fixed top-14 left-0 w-full flex justify-between items-center px-6 py-1 bg-gray-500 text-white shadow z-30">
@@ -118,7 +119,7 @@ export default function DataDashboard() {
                 </div>
             </div>
 
-            <div className='flex flex-col items-center pt-16 gap-5'>
+            <div className='flex flex-col items-center pt-16 gap-5 justify-center'>
 
                 <div className='flex flex-row items-center gap-5'>
                     
@@ -128,7 +129,13 @@ export default function DataDashboard() {
 
                 </div>
 
-                <MessageWB type="misc" /> 
+                <div className='flex flex-row items-center gap-5'>
+                    
+                    <MessageWB type="misc" />
+                    <BackupCard sendMessage={sendMessage}/> 
+
+                </div>
+
 
             </div>
 

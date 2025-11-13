@@ -1,6 +1,0 @@
-2025-11-07 17:46:43 [INFO] (camera_logger_20251107_174643): Camera session ready with label: abc6
-2025-11-07 17:47:22 [INFO] (camera_logger_20251107_174643): Camera CameraPi recieved msg: ['1762537642.493101', '100', '42', '0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'data/sessions/mock/frame_100.jpg']
-2025-11-07 17:47:23 [INFO] (camera_logger_20251107_174643): Camera CameraPi recieved msg: ['1762537643.494624', '101', '42', '0.1', '0.2', '0.3', '1.0', '2.0', '3.0', 'data/sessions/mock/frame_101.jpg']
-2025-11-07 17:47:24 [INFO] (camera_logger_20251107_174643): Camera CameraPi recieved msg: ['1762537644.494961', '102', '42', '0.2', '0.4', '0.6', '2.0', '4.0', '6.0', 'data/sessions/mock/frame_102.jpg']
-2025-11-07 17:47:25 [INFO] (camera_logger_20251107_174643): Camera CameraPi recieved msg: ['1762537645.495292', '103', '42', '0.30000000000000004', '0.6000000000000001', '0.8999999999999999', '3.0', '6.0', '9.0', 'data/sessions/mock/frame_103.jpg']
-2025-11-07 17:47:26 [INFO] (camera_logger_20251107_174643): Camera CameraPi recieved msg: ['1762537646.495634', '104', '42', '0.4', '0.8', '1.2', '4.0', '8.0', '12.0', 'data/sessions/mock/frame_104.jpg']

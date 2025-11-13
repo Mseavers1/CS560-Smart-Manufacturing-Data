@@ -28,10 +28,9 @@ services:
       - PGDATABASE=${DB_NAME}
     ports:
       - "8000:8000"
-      - "5001:5001"
     volumes:
-      - ./db_backups:/db_backups
-      - ./app/logs:/app/logs
+      - nas_backups:/db_backups
+      - logs:/app/logs
     depends_on:                
       - mqtt-broker
 
@@ -44,7 +43,27 @@ services:
       depends_on:
         - fastapi-app
 
-  
+  tcp:
+    build:
+      context: .            
+      dockerfile: tcp_server/dockerfile
+
+    container_name: tcp-server
+    env_file:
+      - .env
+    environment:
+      - PGHOST=192.168.1.111
+      - PGPORT=5433
+      - PGUSER=${DB_USER}
+      - PGPASSWORD=${DB_PASSWORD}
+      - PGDATABASE=${DB_NAME}
+      - ROBOT_TCP_PORT=5001
+    ports:
+      - "5001:5001"
+    volumes:
+      - logs:/app/logs
+      
+
   ntp:
     image: cturra/ntp:latest
     container_name: ntp
@@ -62,3 +81,14 @@ services:
 
 volumes:
   chrony-state:
+  nas_backups:
+    driver_opts:
+      type: "nfs"
+      o: "addr=192.168.1.111,nolock,soft,rw"
+      device: ":/volume1/docker/postgres/backups"
+  logs:
+    driver_opts:
+      type: "nfs"
+      o: "addr=192.168.1.111,nolock,soft,rw"
+      device: ":/volume1/docker/postgres/logs"
+

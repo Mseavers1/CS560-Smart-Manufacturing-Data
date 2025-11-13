@@ -13,13 +13,14 @@ class ConnectionManager:
 
     def get_time(self):
         try:
-            tbroker = TimeBrokerFacade(ntp_server_ip = '192.168.1.76')
+            # tbroker = TimeBrokerFacade(ntp_server_ip = '192.168.1.76')
         
-            unix_time = tbroker.get_synchronized_time()
+            unix_time = datetime.now(timezone.utc).timestamp()
 
             dt = datetime.fromtimestamp(unix_time, tz=ZoneInfo("UTC"))
 
             return dt.astimezone(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %I:%M:%S %p %Z")
+
 
         except(ValueError, IOError) as e:
             print(f"Error: {e}")

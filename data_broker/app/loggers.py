@@ -1,40 +1,64 @@
-# loggers.py
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from pathlib import Path
 
 cur_camera_logger: logging.Logger | None = None
 cur_imu_logger: logging.Logger | None = None
 cur_robot_logger: logging.Logger | None = None
+system_logger: logging.Logger | None = None
+system_logger_date = None
 
-def create_loggers() -> None:
-    """Create (or reuse) file-backed loggers."""
-    global cur_camera_logger, cur_imu_logger, cur_robot_logger  # <<< important
+formatter = logging.Formatter(
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
+def create_logger(logger, name):
+    
     LOG_DIR = Path("/app/logs")
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger = logging.getLogger(f"{name}_{timestamp}_utc")
 
-    # Create/get named loggers
-    cur_camera_logger = logging.getLogger(f"camera_logger_{timestamp}")
-    cur_imu_logger    = logging.getLogger(f"imu_logger_{timestamp}")
-    cur_robot_logger  = logging.getLogger(f"robot_logger_{timestamp}")
+    if not logger.handlers:
+        handler = logging.FileHandler(LOG_DIR / f"{name}_{timestamp}.log")
+        handler.setFormatter(formatter)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+        logger.propagate = False
+    
+    return logger
 
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] (%(name)s): %(message)s",
-        "%Y-%m-%d %H:%M:%S",
-    )
 
-    # Attach handlers once per new logger
-    for logger, name in [
-        (cur_camera_logger, "camera"),
-        (cur_imu_logger, "imu"),
-        (cur_robot_logger, "robot"),
-    ]:
-        if not logger.handlers:
-            handler = logging.FileHandler(LOG_DIR / f"{name}_{timestamp}.log")
-            handler.setFormatter(formatter)
-            logger.setLevel(logging.DEBUG)
-            logger.addHandler(handler)
-            logger.propagate = False  # keep logs out of root logger
+def create_system_logger() -> None:
+    global system_logger, system_logger_date
+
+    utc_date = datetime.now(timezone.utc).strftime("%Y%m%d")
+
+    # Recreate logger if date changes
+    if system_logger is None or system_logger_date != utc_date:
+        system_logger_date = utc_date
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        system_logger = create_logger("system_logger", timestamp)
+
+        system_logger.info(f"Created new system logger for {utc_date}")
+
+
+def log_system_logger(msg: str, isError: bool = False) -> None:
+    create_system_logger()
+
+    if isError:
+        system_logger.error(msg)
+    else:
+        system_logger.info(msg)
+
+
+
+def create_loggers() -> None:
+    global cur_camera_logger, cur_imu_logger, cur_robot_logger
+
+    cur_camera_logger = create_logger(cur_camera_logger, "camera_logger")
+    cur_imu_logger = create_logger(cur_imu_logger, "imu_logger")
+    cur_robot_logger = create_logger(cur_robot_logger, "robot_logger")

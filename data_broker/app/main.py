@@ -24,16 +24,17 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi_mqtt import FastMQTT, MQTTConfig
 import os
-from .database import Database
+from db.database import DatabaseSingleton
 from typing import List, AsyncGenerator, Dict, Any, Optional, Set
-from .tcp_server import handle_robot, start_tcp_server
+# from .tcp_server import handle_robot, start_tcp_server
 from pathlib import Path
 import subprocess
 from fastapi.middleware.cors import CORSMiddleware
 from collections import deque
 import logging
 from . import loggers
-from .connection_manager import camera_manager, imu_manager, robot_manager, misc_manager, MANAGERS
+from app.connection_manager import camera_manager, imu_manager, robot_manager, misc_manager, MANAGERS
+
 
 mqtt_config = MQTTConfig(
     host="host.docker.internal",
@@ -65,70 +66,111 @@ web_imu_messages = []
 web_robot_messages = []
 web_global_errors = []
 
-def try_backup():
-  
-  try:
-    db: Database = app.state.db
-    print(db.create_backup(), flush=True)
+async def try_backup():
 
-    return {"status": "ok"}
-  except Exception as e:
-    print(f"Failed to manually backup: {e}", flush=True)
+    await misc_manager.broadcast_json({
+        "type": "normal",
+        "text": "DB Backup Started"
+    })
 
-    raise HTTPException(status_code=500, detail=f"Backup failed: {e}")
+    try:
+        db: Database = app.state.db
+        backup_path = db.create_backup()
+
+        return {
+            "success": True,
+            "path": backup_path
+        }
+
+        await misc_manager.broadcast_json({
+            "type": "normal",
+            "text": "DB Backup Finished"
+        })
+
+    except Exception as e:
+
+        await misc_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to backup DB: {e}"
+        })
+
+        loggers.log_system_logger(f"Failed to backup DB: {e}", True)
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 
 @app.websocket("/ws/camera")
 async def camera_ws(websocket: WebSocket):
     await camera_manager.connect(websocket)
-    print("Client connected. Active:", len(camera_manager.active))
+    # print("Client connected. Active:", len(camera_manager.active))
+    # loggers.log_system_logger(f"Camera WB connected. There is now a total of {camera_manager.active} connections.")
+
     try:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        print("WebSocket error:", e)
+        # print("WebSocket error:", e)
+        loggers.log_system_logger(f"Camera WB Error: {e}", True)
     finally:
         camera_manager.disconnect(websocket)
-        print("Client disconnected. Active:", len(camera_manager.active))
+        # print("Client disconnected. Active:", len(camera_manager.active))
+        # loggers.log_system_logger(f"Camera WB disconnected. There is now a total of {camera_manager.active} connections.")
 
 
 @app.websocket("/ws/robot")
 async def robot_ws(websocket: WebSocket):
     await robot_manager.connect(websocket)
-    print("Client connected. Active:", len(robot_manager.active))
+    #print("Client connected. Active:", len(robot_manager.active))
+    # loggers.log_system_logger(f"Robot WB connected with a total of {robot_manager.active} connections.")
+    
     try:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        print("WebSocket error:", e)
+        #print("WebSocket error:", e)
+        loggers.log_system_logger(f"Robot WB Error: {e}", True)
+    
     finally:
         robot_manager.disconnect(websocket)
-        print("Client disconnected. Active:", len(robot_manager.active))
+        #print("Client disconnected. Active:", len(robot_manager.active))
+        # loggers.log_system_logger(f"Robot WB connected with a total of {robot_manager.active} connections.")
 
 @app.websocket("/ws/imu")
 async def imu_ws(websocket: WebSocket):
     await imu_manager.connect(websocket)
-    print("Client connected. Active:", len(imu_manager.active))
+    #print("Client connected. Active:", len(imu_manager.active))
+    # loggers.log_system_logger(f"IMU WB connected with a total of {imu_manager.active} connections.")
+    
     try:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        print("WebSocket error:", e)
+        # print("WebSocket error:", e)
+        loggers.log_system_logger(f"IMU WB Error: {e}", True)
     finally:
         imu_manager.disconnect(websocket)
-        print("Client disconnected. Active:", len(imu_manager.active))
+        #print("Client disconnected. Active:", len(imu_manager.active))
+        # loggers.log_system_logger(f"IMU WB connected with a total of {imu_manager.active} connections.")
 
 @app.websocket("/ws/misc")
 async def misc_ws(websocket: WebSocket):
     await misc_manager.connect(websocket)
-    print("Client connected. Active:", len(misc_manager.active))
+    # print("Client connected. Active:", len(misc_manager.active))
+    # loggers.log_system_logger(f"Misc WB connected with a total of {misc_manager.active} connections.")
+
     try:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        print("WebSocket error:", e)
+        # print("WebSocket error:", e)
+        loggers.log_system_logger(f"Misc WB Error: {e}", True)
     finally:
         misc_manager.disconnect(websocket)
-        print("Client disconnected. Active:", len(misc_manager.active))
+        # print("Client disconnected. Active:", len(misc_manager.active))
+        # loggers.log_system_logger(f"Misc WB connected with a total of {misc_manager.active} connections.")
 
 @app.post("/send/{channel}")
 async def send_channel(channel: str, payload: dict):
@@ -159,54 +201,41 @@ def list_backups():
   for file in folder.iterdir():
     if file.is_file():
       files.append(file.name)
-      print(file.name, flush=True)
 
   return {"files": files}
 
 # Manually backup
 @app.get("/backup")
-def backup():
-  return try_backup()
+async def backup():
+  return await try_backup()
 
-### This doesn't work
-@app.get("/backup/load/{file_name}")
-def load_backup(file_name: str):
+@app.post("/backup/restore/{filename}")
+async def restore_backup(filename: str):
     try:
-        backup_file = Path("/db_backups") / file_name  # this is the mounted host folder
-        if not backup_file.exists():
-            raise HTTPException(404, detail=f"Backup not found: {backup_file}")
 
-        # env for pg tools
-        env = {
-            **os.environ,
-            "PGHOST": os.environ.get("PGHOST", "database"),
-            "PGPORT": os.environ.get("PGPORT", "5432"),
-            "PGUSER": os.environ["PGUSER"],
-            "PGPASSWORD": os.environ["PGPASSWORD"],
-            "PGDATABASE": os.environ["PGDATABASE"],
-        }
+        db: Database = app.state.db
+        path = f"/db_backups/{filename}"
 
-        # drop & recreate DB to get a clean state
-        subprocess.run(
-            ["dropdb", "--if-exists", "-h", env["PGHOST"], "-p", env["PGPORT"], "-U", env["PGUSER"], env["PGDATABASE"]],
-            check=True, env=env
-        )
-        subprocess.run(
-            ["createdb", "-h", env["PGHOST"], "-p", env["PGPORT"], "-U", env["PGUSER"], env["PGDATABASE"]],
-            check=True, env=env
-        )
+        # Restore the DB
+        await db.restore_backup(path)
 
-        # restore from .dump
-        subprocess.run(
-            ["pg_restore", "-h", env["PGHOST"], "-p", env["PGPORT"], "-U", env["PGUSER"], "-d", env["PGDATABASE"], str(backup_file)],
-            check=True, env=env
-        )
+        await misc_manager.broadcast_json({
+            "type": "info",
+            "text": f"Restored backup: {filename}"
+        })
 
-        return {"status": "ok", "restored": file_name}
+        return {"success": True}
 
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(500, detail=f"restore failed: {e}")
     except Exception as e:
+        await misc_manager.broadcast_json({
+            "type": "error",
+            "text": f"Restore failed: {e}"
+        })
+
+        loggers.log_system_logger(f"Failed to restore backup: {e}", True)
+
+        return {"success": False, "error": str(e)}
+
         raise HTTPException(500, detail=str(e))
 
 # Test ping if server is running and recieving
@@ -222,7 +251,8 @@ async def get_sessions():
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull latest imu: {e}", flush=True)
+    # print(f"Failed to pull latest imu: {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull latest IMU: {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -235,7 +265,7 @@ async def get_sessions():
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull latest camera: {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull latest CAMERA: {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -248,7 +278,7 @@ async def get_sessions():
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull latest robot: {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull latest ROBOT: {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -261,7 +291,7 @@ async def get_sessions():
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull sessions: {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull sessions: {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -275,7 +305,7 @@ async def get_running_session():
         return {"id": sess_id if sess_id != None else -404, "data": sess_id != None, "success": True}
 
     except Exception as e:
-        print("Failed to get current session")
+        loggers.log_system_logger(f"Failed to get current session: {e}", True)
 
         return {"error": str(e), "success": False}
 
@@ -289,7 +319,7 @@ async def get_imu(label: str):
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull imu data from session '{label}': {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull IMU data from session '{label}': {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -302,7 +332,7 @@ async def get_camera(label: str):
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull camera data from session '{label}': {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull CAMERA data from session '{label}': {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -315,7 +345,7 @@ async def get_robot(label: str):
 
     return {"data": data, "success": True}
   except Exception as e:
-    print(f"Failed to pull robot data from session '{label}': {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull ROBOT data from session '{label}': {e}", True)
 
     return {"error": str(e), "success": False}
 
@@ -335,7 +365,7 @@ async def start_session(label: str):
 
         return {"message": f"Session started with label: {label}", "success": True}
     except Exception as e:
-        print(f"Failed to start session '{label}': {e}", flush=True)
+        loggers.log_system_logger(f"Failed to start session '{label}': {e}", True)
 
         loggers.cur_camera_logger.error(f"Camera session failed to start with label: {label}. Error: {e}")
         loggers.cur_imu_logger.error(f"IMU session failed to start with label: {label}. Error: {e}")
@@ -355,36 +385,26 @@ async def stop_session():
     loggers.cur_imu_logger.info(f"IMU session ended.")
     loggers.cur_robot_logger.info(f"Robot session ended.")
 
-    msg = try_backup()
+    msg = await try_backup()
 
     return {"message": f"Current Session Ended", "backup": msg, "success": True}
   except Exception as e:
 
-    print(f"Failed to stop the current session: {e}", flush=True)
+    loggers.log_system_logger(f"Failed to stop the current session: {e}", True)
 
-    loggers.cur_camera_logger.error(f"Camera session failed to stop with label: {label}. Error: {e}")
-    loggers.cur_imu_logger.error(f"IMU session failed to stop with label: {label}. Error: {e}")
-    loggers.cur_robot_logger.error(f"Robot session failed to stop with label: {label}. Error: {e}")
+    loggers.cur_camera_logger.error(f"Camera session failed to stop. Error: {e}")
+    loggers.cur_imu_logger.error(f"IMU session failed to stop. Error: {e}")
+    loggers.cur_robot_logger.error(f"Robot session failed to stop. Error: {e}")
 
     return {"error": str(e), "success": False}
 
 @app.on_event("startup")
 async def startup():
-    # DB + broadcast
-    app.state.db = await Database.create()
-
-    # TCP listener
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("ROBOT_TCP_PORT", "5001"))
-    app.state.tcp_server = await start_tcp_server(app, host=host, port=port)
+    app.state.db = await DatabaseSingleton.get_instance()
 
 @app.on_event("shutdown")
-async def shutdown():
-    srv = getattr(app.state, "tcp_server", None)
-
-    if srv:
-        srv.close()
-        await srv.wait_closed()
+async def shutdown_event():
+    await DatabaseSingleton.close()
 
 @mqtt.subscribe("imu/#")
 async def handle_sensors(client, topic, payload, qos, prop):
@@ -430,7 +450,9 @@ async def handle_sensors(client, topic, payload, qos, prop):
     })
 
   except Exception as e:
-    print(f"DB insert failed for topic={topic}: {e}", flush=True)
+    loggers.log_system_logger(f"DB insert failed for topic={topic}: {e}", True)
+
+
     loggers.cur_imu_logger.error(f"IMU failed to recieve with error: {e}")
 
     await imu_manager.broadcast_json({
@@ -482,16 +504,11 @@ async def handle_camera(client, topic, payload, qos, prop):
     })
 
   except Exception as e:
-    print(f"DB insert failed for topic={topic}: {e}", flush=True)
+    loggers.log_system_logger(f"DB insert failed for topic={topic}: {e}", True)
+    
 
     loggers.cur_camera_logger.error(f"IMU failed to recieve with error: {e}")
     await camera_manager.broadcast_json({
         "type": "error",
         "text": f"Failed to store: {e}"
     })
-
-@mqtt.on_message()
-async def message(client, topic, payload, qos, prop):
-  msg = f"Message from device ({topic}): {payload.decode()}"
-
-  print(msg)
