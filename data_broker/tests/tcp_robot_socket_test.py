@@ -47,9 +47,10 @@ def create_robot_data(num_records: int = 10) -> pd.DataFrame:
     return df
 
 # DATA SENDING
-def test_robot_data(samples, id="ROBOT"):
+def test_robot_data(samples, interval, id="ROBOT"):
     """
     Sends each row of the DataFrame as a CSV string over TCP.
+    We dont need the 'id' here but it is sent for formality
     """
     df = create_robot_data(samples)
     print(f"[ROBOT TEST] Connecting to Data Broker at {BROKER_IP}:{BROKER_PORT}...")
@@ -58,13 +59,11 @@ def test_robot_data(samples, id="ROBOT"):
     try:
         sock.connect((BROKER_IP, BROKER_PORT))
         print("[ROBOT TEST] Connected successfully.")
-        # print(f"[INFO] Sending {len(df)} data points...")
 
         for i, row in df.iterrows():
             csv_line = ",".join(map(str, row.values)) + "\n"
             sock.sendall(csv_line.encode("utf-8"))
-            # print(f"[SEND] {csv_line.strip()}")
-            time.sleep(SEND_INTERVAL)
+            time.sleep(interval)
 
         print("[ROBOT TEST] Finished sending data.")
 

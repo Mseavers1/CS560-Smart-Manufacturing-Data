@@ -128,7 +128,7 @@ def create_camera_csv_image_path(num_records: int = 1) -> str:
     return df.to_csv(index=False, header=False).strip()
 
 # TEST FUNCTIONS
-def test_imu_client(samples, id=DEVICE_ID_IMU):
+def test_imu_client(samples, interval, id=DEVICE_ID_IMU):
     print("\n[IMU TEST] Starting IMU MQTT test...")
     imu_client = Client(
         broker_ip=BROKER_IP,
@@ -142,7 +142,7 @@ def test_imu_client(samples, id=DEVICE_ID_IMU):
     for i, row in enumerate(rows):
         imu_client.publish(row)
         # print(f"[IMU TEST] Sent IMU data #{i}: {row}")
-        time.sleep(SEND_INTERVAL)
+        time.sleep(interval)
 
     try:
         imu_client.disconnect()
@@ -150,7 +150,7 @@ def test_imu_client(samples, id=DEVICE_ID_IMU):
         print(f"[IMU ERROR] Disconnect skipped: {e}")
     print("[IMU TEST] Finished sending IMU test data.\n")
 
-def test_camera_client(samples, id=DEVICE_ID_CAMERA):
+def test_camera_client(samples, interval, id=DEVICE_ID_CAMERA):
     print("[CAMERA TEST] Starting Camera MQTT test...")
     camera_client = Client(
         broker_ip=BROKER_IP,
@@ -164,30 +164,7 @@ def test_camera_client(samples, id=DEVICE_ID_CAMERA):
     for i, row in enumerate(rows):
         camera_client.publish(row)
         # print(f"[CAMERA TEST] Sent Camera data #{i}: {row}")
-        time.sleep(SEND_INTERVAL)
-    try:
-        camera_client.disconnect()
-    except Exception as e:
-        print(f"[CAMERA ERROR] Disconnect skipped: {e}")
-
-    print("[CAMERA TEST] Finished sending Camera test data.\n")
-
-def test_camera_client_with_img_path(samples):
-    print("[CAMERA TEST] Starting Camera MQTT test...")
-    camera_client = Client(
-        broker_ip=BROKER_IP,
-        client_type=Client.CAMERA,
-        device_id=DEVICE_ID_CAMERA,
-        broker_port=BROKER_PORT
-    )
-
-    rows = create_camera_csv_image_path(samples).splitlines()
-
-    for i, row in enumerate(rows):
-        camera_client.publish(row)
-        # print(f"[CAMERA TEST] Sent Camera data #{i}: {row}")
-        time.sleep(SEND_INTERVAL)
-
+        time.sleep(interval)
     try:
         camera_client.disconnect()
     except Exception as e:
