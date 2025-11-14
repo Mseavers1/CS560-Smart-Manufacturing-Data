@@ -26,6 +26,9 @@ services:
       - PGUSER=${DB_USER}
       - PGPASSWORD=${DB_PASSWORD}
       - PGDATABASE=${DB_NAME}
+      - BATCHES=${BATCHES}
+      - QUEUE_SIZE=${QUEUE_SIZE}
+      - B_TIMEOUT=${B_TIMEOUT}
     ports:
       - "8000:8000"
     volumes:
@@ -57,6 +60,9 @@ services:
       - PGUSER=${DB_USER}
       - PGPASSWORD=${DB_PASSWORD}
       - PGDATABASE=${DB_NAME}
+      - BATCHES=${BATCHES}
+      - B_TIMEOUT=${B_TIMEOUT}
+      - QUEUE_SIZE=${QUEUE_SIZE}
       - ROBOT_TCP_PORT=5001
     ports:
       - "5001:5001"

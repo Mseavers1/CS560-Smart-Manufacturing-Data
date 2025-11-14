@@ -66,6 +66,11 @@ web_imu_messages = []
 web_robot_messages = []
 web_global_errors = []
 
+queue_size = float(os.getenv("QUEUE_SIZE", 5000)) 
+
+imu_queue = asyncio.Queue(maxsize=queue_size)
+camera_queue = asyncio.Queue(maxsize=queue_size)
+
 async def try_backup():
 
     await misc_manager.broadcast_json({
@@ -244,7 +249,7 @@ async def restore_backup(filename: str):
 #   return {"status": "ok"}
 
 @app.get("/imu/latest")
-async def get_sessions():
+async def get_sessions_imu():
   try:
     db: Database = app.state.db
     data = await db.get_latest_imu()
@@ -258,7 +263,7 @@ async def get_sessions():
 
 
 @app.get("/camera/latest")
-async def get_sessions():
+async def get_sessions_camera():
   try:
     db: Database = app.state.db
     data = await db.get_latest_camera()
@@ -271,7 +276,7 @@ async def get_sessions():
 
 
 @app.get("/robot/latest")
-async def get_sessions():
+async def get_sessions_robot():
   try:
     db: Database = app.state.db
     data = await db.get_latest_robot()
@@ -402,113 +407,156 @@ async def stop_session():
 async def startup():
     app.state.db = await DatabaseSingleton.get_instance()
 
+    loggers.create_loggers()
+
+    asyncio.create_task(camera_worker(batch_size=int(os.getenv("BATCHES", 50)), flush_interval=float(os.getenv("B_TIMEOUT"))))
+
+    asyncio.create_task(imu_worker(batch_size=int(os.getenv("BATCHES", 50)), flush_interval=float(os.getenv("B_TIMEOUT"))))
+
 @app.on_event("shutdown")
 async def shutdown_event():
     await DatabaseSingleton.close()
 
+async def camera_worker(batch_size=50, flush_interval=2.0):
+    db: Database = app.state.db
+    batch = []
+    last_flush = asyncio.get_event_loop().time()
+
+    while True:
+        try:
+            item = await asyncio.wait_for(camera_queue.get(), timeout=0.5)
+            batch.append(item)
+        except asyncio.TimeoutError:
+            pass
+
+        now = asyncio.get_event_loop().time()
+        if len(batch) >= batch_size or (batch and (now - last_flush) >= flush_interval):
+
+            try:
+                await db.insert_camera_batch(batch)
+
+                loggers.cur_camera_logger.info(f"Inserted {len(batch)} CAMERA rows")
+
+                await camera_manager.broadcast_json({
+                    "type": "normal",
+                    "text": f"Inserted {len(batch)} CAMERA rows"
+                })
+
+                batch.clear()
+                last_flush = now
+            except Exception as e:
+                loggers.cur_camera_logger.error(f"CAMERA batch insert failed: {e}")
+                
+                await camera_manager.broadcast_json({
+                    "type": "error",
+                    "text": f"Batch insert failed: {e}"
+                })
+                await asyncio.sleep(1)
+
+async def imu_worker(batch_size=50, flush_interval=2.0):
+    db: Database = app.state.db
+    batch = []
+    last_flush = asyncio.get_event_loop().time()
+
+    while True:
+        try:
+            item = await asyncio.wait_for(imu_queue.get(), timeout=0.5)
+            batch.append(item)
+        except asyncio.TimeoutError:
+            pass
+
+        now = asyncio.get_event_loop().time()
+        if len(batch) >= batch_size or (batch and (now - last_flush) >= flush_interval):
+
+            try:
+                await db.insert_imu_batch(batch)
+
+                loggers.cur_imu_logger.info(f"Inserted {len(batch)} IMU rows")
+
+                await imu_manager.broadcast_json({
+                    "type": "normal",
+                    "text": f"Inserted {len(batch)} IMU rows"
+                })
+
+                batch.clear()
+                last_flush = now
+            except Exception as e:
+                loggers.cur_imu_logger.error(f"IMU batch insert failed: {e}")
+
+                await imu_manager.broadcast_json({
+                    "type": "error",
+                    "text": f"Batch insert failed: {e}"
+                })
+                await asyncio.sleep(1)
+
+
 @mqtt.subscribe("imu/#")
 async def handle_sensors(client, topic, payload, qos, prop):
-  device_label = topic.split("/")[1]
+    device_label = topic.split("/")[1]
 
-  if device_label == "minipc2":
-    return
+    if device_label == "minipc2":
+        return
 
-  msg = [part.strip() for part in payload.decode().split(",")]
-  #msg = f"{datetime.utcnow().isoformat()} | {topic} | {payload.decode(errors='ignore')}"
-  #print(msg, flush=True)
+    msg = [part.strip() for part in payload.decode().split(",")]
 
+    try:
+        data = {
+            "device_label": device_label,
+            "recorded_at": float(msg[0]),
+            "accel_x": float(msg[1]),
+            "accel_y": float(msg[2]),
+            "accel_z": float(msg[3]),
+            "gyro_x": float(msg[4]),
+            "gyro_y": float(msg[5]),
+            "gyro_z": float(msg[6]),
+            "mag_x": float(msg[7]),
+            "mag_y": float(msg[8]),
+            "mag_z": float(msg[9]),
+            "yaw": float(msg[10]),
+            "pitch": float(msg[11]),
+            "roll": float(msg[12]),
+        }
 
-  await imu_manager.broadcast_json({
-        "type": "normal",
-        "text": f"Message Recieved"
-  })
+        await imu_queue.put(data)
+        loggers.cur_imu_logger.info(f"Queued IMU data for {device_label}")
 
-  try:
-    db: Database = app.state.db
-    loggers.cur_imu_logger.info(f"IMU {device_label} recieved msg: {msg}")
-
-    await db.insert_imu_data(
-      device_label=device_label,
-      recorded_at = float(msg[0]), 
-      accel_x = float(msg[1]), 
-      accel_y = float(msg[2]), 
-      accel_z = float(msg[3]), 
-      gryo_x = float(msg[4]), 
-      gryo_y = float(msg[5]), 
-      gryo_z = float(msg[6]), 
-      mag_x = float(msg[7]), 
-      mag_y = float(msg[8]), 
-      mag_z = float(msg[9]), 
-      yaw = float(msg[10]), 
-      pitch = float(msg[11]), 
-      roll = float(msg[12])
-    )
-
-    await imu_manager.broadcast_json({
-        "type": "normal",
-        "text": f"Message Stored"
-    })
-
-  except Exception as e:
-    loggers.log_system_logger(f"DB insert failed for topic={topic}: {e}", True)
-
-
-    loggers.cur_imu_logger.error(f"IMU failed to recieve with error: {e}")
-
-    await imu_manager.broadcast_json({
-        "type": "error",
-        "text": f"Message failed to Store: {e}"
-    })
+    except Exception as e:
+        loggers.cur_imu_logger.error(f"IMU parse error: {e}")
+        await imu_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to queue IMU data: {e}"
+        })
 
 @mqtt.subscribe("camera/#")
 async def handle_camera(client, topic, payload, qos, prop):
+    device_label = topic.split("/")[1]
 
-  device_label = topic.split("/")[1]
+    if device_label == "minipc2":
+        return
 
-  if device_label == "minipc2":
-    return
+    msg = [p.strip() for p in payload.decode().split(",")]
 
+    try:
+        data = {
+            "device_label": device_label,
+            "recorded_at": float(msg[0]),
+            "frame_idx": int(msg[1]),
+            "marker_idx": int(msg[2]),
+            "rvec_x": float(msg[3]),
+            "rvec_y": float(msg[4]),
+            "rvec_z": float(msg[5]),
+            "tvec_x": float(msg[6]),
+            "tvec_y": float(msg[7]),
+            "tvec_z": float(msg[8]),
+            "image_path": ""
+        }
 
-  #msg = [part.strip() for part in payload.decode().split(",")]
-  #msg = f"{datetime.utcnow().isoformat()} | {topic} | {payload.decode(errors='ignore')}"
-  msg = [p.strip() for p in payload.decode().split(",")]
+        await camera_queue.put(data)
+        loggers.cur_camera_logger.info(f"Queued camera message from {device_label}")
 
-  #print(msg, flush=True)
-
-  await camera_manager.broadcast_json({
-        "type": "normal",
-        "text": f"Message Recieved"
-  })
-
-  try:
-    db: Database = app.state.db
-    loggers.cur_camera_logger.info(f"Camera {device_label} recieved msg: {msg}")
-
-    await db.insert_camera_data(
-      device_label = device_label,
-      recorded_at = float(msg[0]),
-      frame_idx = int(msg[1]), 
-      marker_idx = int(msg[2]), 
-      rvec_x = float(msg[3]), 
-      rvec_y = float(msg[4]), 
-      rvec_z = float(msg[5]), 
-      tvec_x = float(msg[6]), 
-      tvec_y = float(msg[7]), 
-      tvec_z = float(msg[8]), 
-      image_path = ""
-    )
-
-    await camera_manager.broadcast_json({
-        "type": "normal",
-        "text": f"Message Stored"
-    })
-
-  except Exception as e:
-    loggers.log_system_logger(f"DB insert failed for topic={topic}: {e}", True)
-    
-
-    loggers.cur_camera_logger.error(f"IMU failed to recieve with error: {e}")
-    await camera_manager.broadcast_json({
-        "type": "error",
-        "text": f"Failed to store: {e}"
-    })
+    except Exception as e:
+        loggers.cur_camera_logger.error(f"Camera parse error: {e}")
+        await camera_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to queue message: {e}"
+        })

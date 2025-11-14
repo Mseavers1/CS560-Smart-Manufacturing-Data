@@ -399,6 +399,42 @@ class DatabaseSingleton:
                     ts_int, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at, self.get_time(), device_id, session_id
                 )
 
+    async def insert_imu_batch(self, batch):
+        session_id = await self.get_latest_session()
+
+        if not session_id:
+            raise SessionNotStarted("No current active session. Run a GET to start a new session.")
+
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                records = []
+                for d in batch:
+                    device_id = await self.get_or_create_device_id(d["device_label"], "imu")
+                    
+                    records.append((
+                        device_id, session_id,
+                        d["accel_x"], d["accel_y"], d["accel_z"],
+                        d["gyro_x"], d["gyro_y"], d["gyro_z"],
+                        d["mag_x"], d["mag_y"], d["mag_z"],
+                        d["yaw"], d["pitch"], d["roll"],
+                        d["recorded_at"], self.get_time()
+                    ))
+
+                await conn.executemany("""
+                    INSERT INTO imu_measurement (
+                        device_id, session_id,
+                        accel_x, accel_y, accel_z,
+                        gyro_x, gyro_y, gyro_z,
+                        mag_x, mag_y, mag_z,
+                        yaw, pitch, roll,
+                        recorded_at, ingested_at
+                    )
+                    VALUES (
+                        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+                    )
+                """, records)
+
+
 
     async def insert_imu_data(self, device_label, recorded_at, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll):
 
@@ -420,6 +456,39 @@ class DatabaseSingleton:
                     "INSERT INTO imu_measurement (device_id, session_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, yaw, pitch, roll, recorded_at, ingested_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
                     device_id, session_id, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll, recorded_at, self.get_time()
                 )
+
+    async def insert_camera_batch(self, batch):
+
+        session_id = await self.get_latest_session()
+
+        if not session_id:
+            raise SessionNotStarted("No current active session. Run a GET to start a new session.")
+
+        async with self.pool.acquire() as conn:
+
+            async with conn.transaction():
+
+                await conn.executemany("""
+                    INSERT INTO image_detection (
+                        frame_idx, marker_idx, rvec_x, rvec_y, rvec_z,
+                        tvec_x, tvec_y, tvec_z, image_path,
+                        recorded_at, device_id, session_id, ingested_at
+                    )
+                    VALUES (
+                        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
+                    )
+                """, [
+                    (
+                        d["frame_idx"], d["marker_idx"],
+                        d["rvec_x"], d["rvec_y"], d["rvec_z"],
+                        d["tvec_x"], d["tvec_y"], d["tvec_z"],
+                        d["image_path"], d["recorded_at"],
+                        await self.get_or_create_device_id(d["device_label"], "camera"),
+                        session_id, self.get_time()
+                    )
+                    for d in batch
+                ])
+
 
     # Insert into Camera Table in DB
     async def insert_camera_data(self, device_label, frame_idx, marker_idx, rvec_x, rvec_y, rvec_z, tvec_x, tvec_y, tvec_z, image_path, recorded_at):

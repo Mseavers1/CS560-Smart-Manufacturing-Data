@@ -8,9 +8,9 @@ from db.database import DatabaseSingleton
 import aiohttp
 import time
 
-QUEUE_SIZE = 5000
+queue_size = float(os.getenv("QUEUE_SIZE", 5000)) 
 
-robot_queue = asyncio.Queue(maxsize=QUEUE_SIZE)
+robot_queue = asyncio.Queue(maxsize=queue_size)
 
 async def send_to_fastapi(msg: str, msg_type: str = "normal"):
 
@@ -115,12 +115,14 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
 async def start_tcp_server(host: Optional[str] = None, port: int = 5001):
     host = host or os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("ROBOT_TCP_PORT", port))
+    batch_size = int(os.getenv("BATCHES", 50))
+    batch_timeout = float(os.getenv("B_TIMEOUT", 1.0)) 
 
     server = await asyncio.start_server(handle_robot, host=host, port=port)
     sockets = ", ".join(str(s.getsockname()) for s in (server.sockets or []))
     loggers.cur_robot_logger.info(f"[TCP] Listening on {sockets}")
 
-    asyncio.create_task(robot_worker(batch_size=50, flush_interval=1))
+    asyncio.create_task(robot_worker(batch_size=batch_size, flush_interval=batch_timeout))
 
     async with server:
         await server.serve_forever()
