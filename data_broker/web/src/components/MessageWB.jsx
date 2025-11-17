@@ -124,13 +124,6 @@
                             className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             onClick={() => {setRefreshTemp(!refreshTemp)}}
                             >
-                            Get Latest
-                        </button>
-
-                        <button
-                            className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            onClick={() => {setRefreshTemp(!refreshTemp)}}
-                            >
                             Refresh
                         </button>
 
