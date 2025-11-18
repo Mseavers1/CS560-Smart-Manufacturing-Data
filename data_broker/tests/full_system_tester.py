@@ -21,6 +21,8 @@ IMU_INT = 0.1
 CAM_INT = 0.1
 ROBOT_INT = 0.1
 
+RESULT_LOCK = threading.Lock()
+
 CLIENT_FUNCTIONS = {
     "Camera Client": test_camera_client,
     "IMU Client": test_imu_client,
@@ -81,12 +83,13 @@ def device_wrapper(device_name, func, samples, interval, device_id, results_stor
     rate = samples / duration if duration > 0 else 0
 
     # Store results for summary later
-    results_store[device_id] = {
-        "device_type": device_name,
-        "samples": samples,
-        "duration": duration,
-        "avg_rate": rate
-    }
+    with RESULT_LOCK:
+        results_store[device_id] = {
+            "device_type": device_name,
+            "samples": samples,
+            "duration": duration,
+            "avg_rate": rate
+        }
 
     print(f"{color}[{device_name}] '{device_id}' finished: "
           f"{samples} samples in {duration:.2f}s → {rate:.2f} Hz avg{Colors.END}")
@@ -120,7 +123,6 @@ def run_all_tests():
             t = threading.Thread(
                 target=device_wrapper,
                 name=thread_name,
-                daemon=True,
                 args=(name, func, samples, interval, device_id, results_store)
             )
 
@@ -130,8 +132,8 @@ def run_all_tests():
 
     # Wait for threads
     try:
-        while any(t.is_alive() for t in threads):
-            time.sleep(0.5)
+        for t in threads:
+            t.join()
     except KeyboardInterrupt:
         print("[MAIN] Interrupted, exiting early...")
 
