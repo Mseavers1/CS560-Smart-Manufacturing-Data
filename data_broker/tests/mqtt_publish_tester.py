@@ -128,7 +128,7 @@ def create_camera_csv_image_path(num_records: int = 1) -> str:
     return df.to_csv(index=False, header=False).strip()
 
 # TEST FUNCTIONS
-def test_imu_client(samples, id=DEVICE_ID_IMU):
+def test_imu_client(samples, id=DEVICE_ID_IMU, interval=SEND_INTERVAL):
     print("\n[IMU TEST] Starting IMU MQTT test...")
     imu_client = Client(
         broker_ip=BROKER_IP,
@@ -150,7 +150,7 @@ def test_imu_client(samples, id=DEVICE_ID_IMU):
         print(f"[IMU ERROR] Disconnect skipped: {e}")
     print("[IMU TEST] Finished sending IMU test data.\n")
 
-def test_camera_client(samples, id=DEVICE_ID_CAMERA):
+def test_camera_client(samples, id=DEVICE_ID_CAMERA, interval=SEND_INTERVAL):
     print("[CAMERA TEST] Starting Camera MQTT test...")
     camera_client = Client(
         broker_ip=BROKER_IP,

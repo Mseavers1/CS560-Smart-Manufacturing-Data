@@ -2,7 +2,9 @@ import threading, time
 from mqtt_publish_tester import test_imu_client, test_camera_client
 from tcp_robot_socket_test import test_robot_data
 
+# SET SAMPLE SIZE AND SEND_INTERVAL
 SAMPLES = 1000
+SEND_INTERVAL = 0.001
 
 # How many of each simulated device to run
 DEVICE_COUNTS = {
@@ -18,7 +20,7 @@ CLIENT_FUNCTIONS = {
     "Robot TCP Client": test_robot_data
 }
 
-def run_all_tests(samples):
+def run_all_tests(samples, interval):
     threads = []
 
     for name, count in DEVICE_COUNTS.items():
@@ -40,7 +42,7 @@ def run_all_tests(samples):
                 target=func,
                 name=thread_name,
                 daemon=True,
-                args=(samples, device_id)  # <-- pass device_id here
+                args=(samples, device_id, interval)
             )
             threads.append(t)
             t.start()
@@ -54,4 +56,4 @@ def run_all_tests(samples):
     print("[MAIN] All tests completed")
 
 if __name__ == "__main__":
-    run_all_tests(SAMPLES)
+    run_all_tests(samples=SAMPLES, interval=SEND_INTERVAL)
