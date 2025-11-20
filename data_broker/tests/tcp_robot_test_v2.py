@@ -5,6 +5,7 @@ Robot TCP Data Flow Test Script — Full Logging + Return Stats Version
 import socket
 import pandas as pd
 import numpy as np
+import datetime
 import time
 from logging_config import logger, colorize
 
@@ -25,8 +26,11 @@ NUM_SAMPLES = 10
 def create_robot_data(num_records: int = 10) -> list[str]:
     """
     Create robot telemetry rows (CSV strings).
+    First value sent from actual robot is a string, second is an int, rest of the values are floats
     """
-    empty_col = [""] * num_records
+    timestamp_str = datetime.now().strftime("%m/%d/%Y %H:%M")
+
+    timestamp_col = [timestamp_str] * num_records
     int_col = np.arange(1, num_records + 1, dtype=int)
 
     float_cols = {
@@ -35,7 +39,7 @@ def create_robot_data(num_records: int = 10) -> list[str]:
     }
 
     df = pd.DataFrame({
-        "col_0": empty_col,
+        "col_0": timestamp_col, 
         "col_1": int_col,
         **float_cols
     })
