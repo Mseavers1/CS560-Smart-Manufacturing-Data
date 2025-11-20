@@ -358,6 +358,34 @@ async def get_robot(label: str):
 @app.get("/session/start/{label}")
 async def start_session(label: str):
 
+    # --- Sync NTP ---
+    # ntp_server = os.getenv("NTP_SERVER", "ntp")
+    # cmd = f'chronyd -q "server {ntp_server} iburst"'
+
+    """try:
+        process = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode == 0:
+            msg = f"Synced system time with {ntp_server}: {stdout.decode().strip()}"
+            loggers.log_system_logger(msg)
+            await misc_manager.broadcast_json({"type": "normal", "text": msg})
+        else:
+            err = stderr.decode().strip()
+            raise RuntimeError(f"chronyd exited with {process.returncode}: {err}")
+
+    except Exception as e:
+        loggers.log_system_logger(f"Failed to sync system time: {e}", True)
+        await misc_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to sync system time: {e}"
+        })"""
+
+    # --- Continue session setup ---
     loggers.create_loggers()
 
     try:
@@ -371,7 +399,6 @@ async def start_session(label: str):
         return {"message": f"Session started with label: {label}", "success": True}
     except Exception as e:
         loggers.log_system_logger(f"Failed to start session '{label}': {e}", True)
-
         loggers.cur_camera_logger.error(f"Camera session failed to start with label: {label}. Error: {e}")
         loggers.cur_imu_logger.error(f"IMU session failed to start with label: {label}. Error: {e}")
         loggers.cur_robot_logger.error(f"Robot session failed to start with label: {label}. Error: {e}")

@@ -7,6 +7,8 @@ from app import loggers
 from db.database import DatabaseSingleton
 import aiohttp
 import time
+from zoneinfo import ZoneInfo
+
 
 queue_size = float(os.getenv("QUEUE_SIZE", 5000)) 
 
@@ -82,8 +84,21 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
 
                 try:
                     parts = [p.strip() for p in text.split(",")]
+
+                    ts_str = parts[0]
+
+                    try:
+                        dt = datetime.strptime(ts_str, "%m/%d/%Y %H:%M")
+                        local_dt = dt.replace(tzinfo=ZoneInfo("US/Eastern"))
+                        utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
+                        ts_epoch = int(utc_dt.timestamp())
+
+                    except Exception as e:
+                        ts_epoch = int(-1)
+
+
                     data = {
-                        "ts": int(parts[1]),
+                        "ts": ts_epoch,
                         "joint1": float(parts[2]),
                         "joint2": float(parts[3]),
                         "joint3": float(parts[4]),
@@ -96,12 +111,13 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
                         "w": float(parts[11]),
                         "p": float(parts[12]),
                         "r": float(parts[13]),
-                        "recorded_at": db.get_time()
+                        "recorded_at": db.get_time(),
                     }
 
                     await robot_queue.put(data)
                     loggers.cur_robot_logger.info(f"Queued message: {text}")
                 except Exception as e:
+                    print(f"ROBOT PARSE ERROR: {e} line={text!r}")  # 👈 new
                     loggers.cur_robot_logger.error(f"Parse error: {e}")
 
     except asyncio.CancelledError:
