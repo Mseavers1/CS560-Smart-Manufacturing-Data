@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """
-master_test.py
+full_system_tester_v2.py
 
 Unified master test harness for running IMU, Camera, and Robot TCP testers concurrently.
 Uses the shared logger defined in logging_config.py
-IMPROVED: Now captures actual test results from test functions
+
+KNOWN ISSUES
+Since this uses python, we are limited by the GIL, therefore heavier test will naturally lag more
+Could update python or move to another lang for the future.
 """
 
 from logging_config import logger, colorize
+import os
 import threading
 import queue
 import csv
 import time
 import sys
 from typing import Callable
+import pandas as pd
 
 #  edit these imports to the new v2 scripts
 from mqtt_tester_v2 import test_imu_client, test_camera_client
@@ -27,13 +32,14 @@ IMU_DEVICE_CNT = 1
 CAM_DEVICE_CNT = 1
 ROBOT_DEVICE_CNT = 1
 
-IMU_SAMPLES = 100
-CAM_SAMPLES = 100
-ROBOT_SAMPLES = 100
+IMU_SAMPLES = 150
+CAM_SAMPLES = 150
+ROBOT_SAMPLES = 150
 
+# interval = 0.001 s (1000 Hz)
 IMU_INT = 0.2
-CAM_INT = 0.3
-ROBOT_INT = 0.5
+CAM_INT = 0.2
+ROBOT_INT = 0.2
 
 CLIENT_FUNCTIONS = {
     "Camera Client": test_camera_client,
@@ -59,6 +65,34 @@ DEVICE_INTERVALS = {
     "Robot TCP Client": ROBOT_INT,
 }
 
+# -----------------------------
+# Create file path for saved results
+# -----------------------------
+def generate_results_path(
+    imu_runs, imu_samples, imu_int,
+    cam_runs, cam_samples, cam_int,
+    robot_runs, robot_samples, robot_int,
+    base_dir="test_results"
+):
+    # Create directory if not exists
+    os.makedirs(base_dir, exist_ok=True)
+
+    # Base filename without index
+    base_name = f"dev_imu{imu_runs}sam{imu_samples}int{imu_int}dev_cam{cam_runs}sam{cam_samples}int{cam_int}dev_robot{robot_runs}sam{robot_samples}int{robot_int}"
+
+    # Find next available index
+    index = 1
+    while True:
+        filename = f"{base_name}_test{index}.csv"
+        full_path = os.path.join(base_dir, filename)
+        if not os.path.exists(full_path):
+            return full_path
+        index += 1
+
+def save_results(data, filename="results.csv"):
+    df = pd.DataFrame(data)
+    df.to_csv(filename, index=False)
+    logger.info(f"Saved results to {filename}")
 
 # -----------------------------
 # Device Thread Wrapper
@@ -145,7 +179,6 @@ def device_wrapper(
             )
         )
 
-
 # -----------------------------
 # Run All Tests
 # -----------------------------
@@ -201,7 +234,6 @@ def run_all_tests(export_csv: str | None = None):
     while not results_q.empty():
         results.append(results_q.get())
 
-    # Print summary
     print("\n" + "=" * 80)
     print(" SYSTEM TEST SUMMARY")
     print("=" * 80 + "\n")
@@ -229,13 +261,12 @@ def run_all_tests(export_csv: str | None = None):
         total_requested += r['samples_requested']
         total_errors += r['errors']
 
-    # Overall system statistics
     print("-" * 80)
     print("OVERALL STATISTICS:")
     print(f"  Total Requested:    {total_requested}")
     print(f"  Total Sent:         {total_sent}")
     print(f"  Total Errors:       {total_errors}")
-    print(f"  System Success:     {(total_sent/total_requested*100):.1f}%" if total_requested > 0 else "N/A")
+    print(f"  System Success:     {(total_sent / total_requested * 100):.1f}%" if total_requested > 0 else "N/A")
     print(f"  Failed Tests:       {len(failed_tests)}")
     if failed_tests:
         print(f"  Failed Device IDs:  {', '.join(failed_tests)}")
@@ -245,36 +276,24 @@ def run_all_tests(export_csv: str | None = None):
     print(f"\nSYSTEM STATUS: {system_status}")
     print("=" * 80 + "\n")
 
-    # Optional CSV export
-    if export_csv:
-        fields = [
-            "device_id",
-            "device_type",
-            "samples_requested",
-            "samples_sent",
-            "samples_completed",
-            "errors",
-            "duration_s",
-            "avg_rate_hz",
-            "success_rate",
-            "error",
-        ]
 
-        try:
-            with open(export_csv, "w", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=fields)
-                writer.writeheader()
-                for r in results:
-                    writer.writerow(r)
+    output_path = generate_results_path(
+        imu_runs=IMU_DEVICE_CNT,
+        imu_samples=IMU_SAMPLES,
+        imu_int=IMU_INT,
+        cam_runs=CAM_DEVICE_CNT,
+        cam_samples=CAM_SAMPLES,
+        cam_int=CAM_INT,
+        robot_runs=ROBOT_DEVICE_CNT,
+        robot_samples=ROBOT_SAMPLES,
+        robot_int=ROBOT_INT,
+    )
 
-            print(f"Results exported to {export_csv}")
-        except Exception as e:
-            print(f"Failed to write CSV: {e}")
+    save_results(results, output_path)
 
-
+    return results
 # -----------------------------
 # Entry Point
 # -----------------------------
 if __name__ == "__main__":
-    csv_out = sys.argv[1] if len(sys.argv) > 1 else None
-    run_all_tests(export_csv=csv_out)
+    run_all_tests()
