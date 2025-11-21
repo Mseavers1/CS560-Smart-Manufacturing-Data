@@ -296,12 +296,45 @@ class DatabaseSingleton:
                 FROM robot AS robt
                 JOIN session AS s ON robt.session_id = s.id
                 WHERE s.label = $1
+                ORDER BY robt.ts_epoch
             """, session_label)
         
         # Convert to json
         data = [dict(r) for r in rows]
 
-        return data
+        twins = []
+        for r in rows:
+            item = {
+                "ts": r["ts_epoch"], 
+
+                "joints": [
+                    r["joint_1"],
+                    r["joint_2"],
+                    r["joint_3"],
+                    r["joint_4"],
+                    r["joint_5"],
+                    r["joint_6"],
+                ],
+                "tcp": [
+                    r["x"],
+                    r["y"],
+                    r["z"],
+                ],
+
+                "quat": [
+                    r["w"],
+                    r["p"],
+                    r["r"],
+                    1,
+                ],
+            }
+
+            twins.append(item)
+
+    
+
+
+        return twins
     
     async def retrieve_sessions(self): 
         

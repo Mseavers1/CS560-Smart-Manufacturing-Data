@@ -51,6 +51,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://192.168.1.76:5173",
         "http://192.168.1.76:3000",
+        "http://192.168.1.76:8001",
     ],
     allow_methods=["*"],
     allow_headers=["*"],
@@ -545,7 +546,7 @@ async def handle_sensors(client, topic, payload, qos, prop):
         }
 
         await imu_queue.put(data)
-        loggers.cur_imu_logger.info(f"Queued IMU data for {device_label}")
+        # loggers.cur_imu_logger.info(f"Queued IMU data for {device_label}")
 
     except Exception as e:
         loggers.cur_imu_logger.error(f"IMU parse error: {e}")
@@ -579,7 +580,7 @@ async def handle_camera(client, topic, payload, qos, prop):
         }
 
         await camera_queue.put(data)
-        loggers.cur_camera_logger.info(f"Queued camera message from {device_label}")
+        # loggers.cur_camera_logger.info(f"Queued camera message from {device_label}")
 
     except Exception as e:
         loggers.cur_camera_logger.error(f"Camera parse error: {e}")
