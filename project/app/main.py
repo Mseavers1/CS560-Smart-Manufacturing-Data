@@ -1,0 +1,563 @@
+# conda activate data 
+
+import asyncio, os, loggers
+from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi_mqtt import FastMQTT, MQTTConfig
+from db.database import DatabaseSingleton
+from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
+from app.connection_manager import camera_manager, imu_manager, robot_manager, misc_manager, MANAGERS
+
+
+mqtt_config = MQTTConfig(
+    host="host.docker.internal",
+    port=1883,
+    keepalive=60,
+)
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://192.168.1.76",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://192.168.1.76:5173",
+        "http://192.168.1.76:3000",
+        "http://192.168.1.76:8001",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
+
+
+mqtt = FastMQTT(config=mqtt_config)
+mqtt.init_app(app)
+
+web_camera_messages = []
+web_imu_messages = []
+web_robot_messages = []
+web_global_errors = []
+
+queue_size = float(os.getenv("QUEUE_SIZE", 5000)) 
+
+imu_queue = asyncio.Queue(maxsize=queue_size)
+camera_queue = asyncio.Queue(maxsize=queue_size)
+
+async def try_backup():
+
+    await misc_manager.broadcast_json({
+        "type": "normal",
+        "text": "DB Backup Started"
+    })
+
+    try:
+        db: Database = app.state.db
+        backup_path = db.create_backup()
+
+        return {
+            "success": True,
+            "path": backup_path
+        }
+
+        await misc_manager.broadcast_json({
+            "type": "normal",
+            "text": "DB Backup Finished"
+        })
+
+    except Exception as e:
+
+        await misc_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to backup DB: {e}"
+        })
+
+        loggers.log_system_logger(f"Failed to backup DB: {e}", True)
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.websocket("/ws/camera")
+async def camera_ws(websocket: WebSocket):
+    await camera_manager.connect(websocket)
+    # print("Client connected. Active:", len(camera_manager.active))
+    # loggers.log_system_logger(f"Camera WB connected. There is now a total of {camera_manager.active} connections.")
+
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        # print("WebSocket error:", e)
+        loggers.log_system_logger(f"Camera WB Error: {e}", True)
+    finally:
+        camera_manager.disconnect(websocket)
+        # print("Client disconnected. Active:", len(camera_manager.active))
+        # loggers.log_system_logger(f"Camera WB disconnected. There is now a total of {camera_manager.active} connections.")
+
+
+@app.websocket("/ws/robot")
+async def robot_ws(websocket: WebSocket):
+    await robot_manager.connect(websocket)
+    #print("Client connected. Active:", len(robot_manager.active))
+    # loggers.log_system_logger(f"Robot WB connected with a total of {robot_manager.active} connections.")
+    
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        #print("WebSocket error:", e)
+        loggers.log_system_logger(f"Robot WB Error: {e}", True)
+    
+    finally:
+        robot_manager.disconnect(websocket)
+        #print("Client disconnected. Active:", len(robot_manager.active))
+        # loggers.log_system_logger(f"Robot WB connected with a total of {robot_manager.active} connections.")
+
+@app.websocket("/ws/imu")
+async def imu_ws(websocket: WebSocket):
+    await imu_manager.connect(websocket)
+    #print("Client connected. Active:", len(imu_manager.active))
+    # loggers.log_system_logger(f"IMU WB connected with a total of {imu_manager.active} connections.")
+    
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        # print("WebSocket error:", e)
+        loggers.log_system_logger(f"IMU WB Error: {e}", True)
+    finally:
+        imu_manager.disconnect(websocket)
+        #print("Client disconnected. Active:", len(imu_manager.active))
+        # loggers.log_system_logger(f"IMU WB connected with a total of {imu_manager.active} connections.")
+
+@app.websocket("/ws/misc")
+async def misc_ws(websocket: WebSocket):
+    await misc_manager.connect(websocket)
+    # print("Client connected. Active:", len(misc_manager.active))
+    # loggers.log_system_logger(f"Misc WB connected with a total of {misc_manager.active} connections.")
+
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except Exception as e:
+        # print("WebSocket error:", e)
+        loggers.log_system_logger(f"Misc WB Error: {e}", True)
+    finally:
+        misc_manager.disconnect(websocket)
+        # print("Client disconnected. Active:", len(misc_manager.active))
+        # loggers.log_system_logger(f"Misc WB connected with a total of {misc_manager.active} connections.")
+
+@app.post("/send/{channel}")
+async def send_channel(channel: str, payload: dict):
+
+    mgr = MANAGERS.get(channel)
+
+    if not mgr:
+        raise HTTPException(404, "unknown channel")
+
+    # Expected Messages: {"type":"normal|info|error", "text":"..."}
+    if "text" not in payload:
+        raise HTTPException(400, "missing 'text'")
+
+    if "type" not in payload:
+        payload["type"] = "normal"
+
+    await mgr.broadcast_json(payload)
+    return {"success": True}
+
+
+@app.get("/backup/list")
+def list_backups():
+
+  folder = Path("/db_backups")
+  files = []
+
+  # List all files
+  for file in folder.iterdir():
+    if file.is_file():
+      files.append(file.name)
+
+  return {"files": files}
+
+# Manually backup
+@app.get("/backup")
+async def backup():
+  return await try_backup()
+
+@app.post("/backup/restore/{filename}")
+async def restore_backup(filename: str):
+    try:
+
+        db: Database = app.state.db
+        path = f"/db_backups/{filename}"
+
+        # Restore the DB
+        await db.restore_backup(path)
+
+        await misc_manager.broadcast_json({
+            "type": "info",
+            "text": f"Restored backup: {filename}"
+        })
+
+        return {"success": True}
+
+    except Exception as e:
+        await misc_manager.broadcast_json({
+            "type": "error",
+            "text": f"Restore failed: {e}"
+        })
+
+        loggers.log_system_logger(f"Failed to restore backup: {e}", True)
+
+        return {"success": False, "error": str(e)}
+
+        raise HTTPException(500, detail=str(e))
+
+# Test ping if server is running and recieving
+# @app.get("/ping")
+# def ping():
+#   return {"status": "ok"}
+
+@app.get("/imu/latest")
+async def get_sessions_imu():
+  try:
+    db: Database = app.state.db
+    data = await db.get_latest_imu()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    # print(f"Failed to pull latest imu: {e}", flush=True)
+    loggers.log_system_logger(f"Failed to pull latest IMU: {e}", True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/camera/latest")
+async def get_sessions_camera():
+  try:
+    db: Database = app.state.db
+    data = await db.get_latest_camera()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    loggers.log_system_logger(f"Failed to pull latest CAMERA: {e}", True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/robot/latest")
+async def get_sessions_robot():
+  try:
+    db: Database = app.state.db
+    data = await db.get_latest_robot()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    loggers.log_system_logger(f"Failed to pull latest ROBOT: {e}", True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/sessions")
+async def get_sessions():
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_sessions()
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    loggers.log_system_logger(f"Failed to pull sessions: {e}", True)
+
+    return {"error": str(e), "success": False}
+
+@app.get("/session")
+async def get_running_session():
+    
+    try:
+        db: Database = app.state.db
+        sess_id = db.current_session_id
+
+        return {"id": sess_id if sess_id != None else -404, "data": sess_id != None, "success": True}
+
+    except Exception as e:
+        loggers.log_system_logger(f"Failed to get current session: {e}", True)
+
+        return {"error": str(e), "success": False}
+
+
+@app.get("/imu/{label}")
+async def get_imu(label: str):
+
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_imu(label)
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    loggers.log_system_logger(f"Failed to pull IMU data from session '{label}': {e}", True)
+
+    return {"error": str(e), "success": False}
+
+@app.get("/camera/{label}")
+async def get_camera(label: str):
+
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_camera(label)
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    loggers.log_system_logger(f"Failed to pull CAMERA data from session '{label}': {e}", True)
+
+    return {"error": str(e), "success": False}
+
+@app.get("/robot/{label}")
+async def get_robot(label: str):
+
+  try:
+    db: Database = app.state.db
+    data = await db.retrieve_robot(label)
+
+    return {"data": data, "success": True}
+  except Exception as e:
+    loggers.log_system_logger(f"Failed to pull ROBOT data from session '{label}': {e}", True)
+
+    return {"error": str(e), "success": False}
+
+
+@app.get("/session/start/{label}")
+async def start_session(label: str):
+
+    # --- Sync NTP ---
+    # ntp_server = os.getenv("NTP_SERVER", "ntp")
+    # cmd = f'chronyd -q "server {ntp_server} iburst"'
+
+    """try:
+        process = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode == 0:
+            msg = f"Synced system time with {ntp_server}: {stdout.decode().strip()}"
+            loggers.log_system_logger(msg)
+            await misc_manager.broadcast_json({"type": "normal", "text": msg})
+        else:
+            err = stderr.decode().strip()
+            raise RuntimeError(f"chronyd exited with {process.returncode}: {err}")
+
+    except Exception as e:
+        loggers.log_system_logger(f"Failed to sync system time: {e}", True)
+        await misc_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to sync system time: {e}"
+        })"""
+
+    # --- Continue session setup ---
+    loggers.create_loggers()
+
+    try:
+        db: Database = app.state.db
+        await db.create_session(label=label)
+
+        loggers.cur_camera_logger.info(f"Camera session ready with label: {label}")
+        loggers.cur_imu_logger.info(f"IMU session ready with label: {label}")
+        loggers.cur_robot_logger.info(f"Robot session ready with label: {label}")
+
+        return {"message": f"Session started with label: {label}", "success": True}
+    except Exception as e:
+        loggers.log_system_logger(f"Failed to start session '{label}': {e}", True)
+        loggers.cur_camera_logger.error(f"Camera session failed to start with label: {label}. Error: {e}")
+        loggers.cur_imu_logger.error(f"IMU session failed to start with label: {label}. Error: {e}")
+        loggers.cur_robot_logger.error(f"Robot session failed to start with label: {label}. Error: {e}")
+
+        return {"error": str(e), "success": False}
+
+@app.get("/session/stop")
+async def stop_session():
+
+  try:
+
+    db: Database = app.state.db
+    await db.end_session()
+
+    loggers.cur_camera_logger.info(f"Camera session ended.")
+    loggers.cur_imu_logger.info(f"IMU session ended.")
+    loggers.cur_robot_logger.info(f"Robot session ended.")
+
+    msg = await try_backup()
+
+    return {"message": f"Current Session Ended", "backup": msg, "success": True}
+  except Exception as e:
+
+    loggers.log_system_logger(f"Failed to stop the current session: {e}", True)
+
+    loggers.cur_camera_logger.error(f"Camera session failed to stop. Error: {e}")
+    loggers.cur_imu_logger.error(f"IMU session failed to stop. Error: {e}")
+    loggers.cur_robot_logger.error(f"Robot session failed to stop. Error: {e}")
+
+    return {"error": str(e), "success": False}
+
+@app.on_event("startup")
+async def startup():
+    app.state.db = await DatabaseSingleton.get_instance()
+
+    loggers.create_loggers()
+
+    asyncio.create_task(camera_worker(batch_size=int(os.getenv("BATCHES", 50)), flush_interval=float(os.getenv("B_TIMEOUT"))))
+
+    asyncio.create_task(imu_worker(batch_size=int(os.getenv("BATCHES", 50)), flush_interval=float(os.getenv("B_TIMEOUT"))))
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await DatabaseSingleton.close()
+
+async def camera_worker(batch_size=50, flush_interval=2.0):
+    db: Database = app.state.db
+    batch = []
+    last_flush = asyncio.get_event_loop().time()
+
+    while True:
+        try:
+            item = await asyncio.wait_for(camera_queue.get(), timeout=0.5)
+            batch.append(item)
+        except asyncio.TimeoutError:
+            pass
+
+        now = asyncio.get_event_loop().time()
+        if len(batch) >= batch_size or (batch and (now - last_flush) >= flush_interval):
+
+            try:
+                await db.insert_camera_batch(batch)
+
+                loggers.cur_camera_logger.info(f"Inserted {len(batch)} CAMERA rows")
+
+                await camera_manager.broadcast_json({
+                    "type": "normal",
+                    "text": f"Inserted {len(batch)} CAMERA rows"
+                })
+
+                batch.clear()
+                last_flush = now
+            except Exception as e:
+                loggers.cur_camera_logger.error(f"CAMERA batch insert failed: {e}")
+                
+                await camera_manager.broadcast_json({
+                    "type": "error",
+                    "text": f"Batch insert failed: {e}"
+                })
+                await asyncio.sleep(1)
+
+async def imu_worker(batch_size=50, flush_interval=2.0):
+    db: Database = app.state.db
+    batch = []
+    last_flush = asyncio.get_event_loop().time()
+
+    while True:
+        try:
+            item = await asyncio.wait_for(imu_queue.get(), timeout=0.5)
+            batch.append(item)
+        except asyncio.TimeoutError:
+            pass
+
+        now = asyncio.get_event_loop().time()
+        if len(batch) >= batch_size or (batch and (now - last_flush) >= flush_interval):
+
+            try:
+                await db.insert_imu_batch(batch)
+
+                loggers.cur_imu_logger.info(f"Inserted {len(batch)} IMU rows")
+
+                await imu_manager.broadcast_json({
+                    "type": "normal",
+                    "text": f"Inserted {len(batch)} IMU rows"
+                })
+
+                batch.clear()
+                last_flush = now
+            except Exception as e:
+                loggers.cur_imu_logger.error(f"IMU batch insert failed: {e}")
+
+                await imu_manager.broadcast_json({
+                    "type": "error",
+                    "text": f"Batch insert failed: {e}"
+                })
+                await asyncio.sleep(1)
+
+
+@mqtt.subscribe("imu/#")
+async def handle_sensors(client, topic, payload, qos, prop):
+    device_label = topic.split("/")[1]
+
+    if device_label == "minipc2":
+        return
+
+    msg = [part.strip() for part in payload.decode().split(",")]
+
+    try:
+        data = {
+            "device_label": device_label,
+            "recorded_at": float(msg[0]),
+            "accel_x": float(msg[1]),
+            "accel_y": float(msg[2]),
+            "accel_z": float(msg[3]),
+            "gyro_x": float(msg[4]),
+            "gyro_y": float(msg[5]),
+            "gyro_z": float(msg[6]),
+            "mag_x": float(msg[7]),
+            "mag_y": float(msg[8]),
+            "mag_z": float(msg[9]),
+            "yaw": float(msg[10]),
+            "pitch": float(msg[11]),
+            "roll": float(msg[12]),
+        }
+
+        await imu_queue.put(data)
+        # loggers.cur_imu_logger.info(f"Queued IMU data for {device_label}")
+
+    except Exception as e:
+        loggers.cur_imu_logger.error(f"IMU parse error: {e}")
+        await imu_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to queue IMU data: {e}"
+        })
+
+@mqtt.subscribe("camera/#")
+async def handle_camera(client, topic, payload, qos, prop):
+    device_label = topic.split("/")[1]
+
+    if device_label == "minipc2":
+        return
+
+    msg = [p.strip() for p in payload.decode().split(",")]
+
+    try:
+        data = {
+            "device_label": device_label,
+            "recorded_at": float(msg[0]),
+            "frame_idx": int(msg[1]),
+            "marker_idx": int(msg[2]),
+            "rvec_x": float(msg[3]),
+            "rvec_y": float(msg[4]),
+            "rvec_z": float(msg[5]),
+            "tvec_x": float(msg[6]),
+            "tvec_y": float(msg[7]),
+            "tvec_z": float(msg[8]),
+            "image_path": ""
+        }
+
+        await camera_queue.put(data)
+        # loggers.cur_camera_logger.info(f"Queued camera message from {device_label}")
+
+    except Exception as e:
+        loggers.cur_camera_logger.error(f"Camera parse error: {e}")
+        await camera_manager.broadcast_json({
+            "type": "error",
+            "text": f"Failed to queue message: {e}"
+        })

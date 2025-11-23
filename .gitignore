@@ -1,2 +1,3 @@
 digital-twin/
 digital-twin/node_modules/.bin/loose-envify
+/data_broker/app/venv/
