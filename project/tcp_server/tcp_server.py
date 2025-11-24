@@ -1,8 +1,8 @@
 import os, asyncio, aiohttp, time
 from typing import Optional, Tuple
 from datetime import datetime
-from app import loggers
-from db.database import DatabaseSingleton
+from project.fast_server import loggers
+from project.db.database import DatabaseSingleton
 from zoneinfo import ZoneInfo
 
 # Batched info for ROBOT

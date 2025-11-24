@@ -61,3 +61,11 @@ MANAGERS = {
     "robot": robot_manager,
     "misc": misc_manager
 }
+
+# Helper method that sends a message to be pushed onto the web interface
+async def broadcast_message(manager, msg:str, msg_type:str = "normal") -> None:
+
+    await manager.broadcast_json({
+        "type": msg_type,
+        "text": msg
+    })
