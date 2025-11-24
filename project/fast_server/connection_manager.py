@@ -1,44 +1,46 @@
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from datetime import datetime, timezone
-from ntp_facade_smr import TimeBrokerFacade
 from typing import List
 from zoneinfo import ZoneInfo
 import json
 
-# Created in junction using GPT
+# Global method to get the time -- Uses system or container time -- Returns American timezone time
+def get_time():
+    try:
+        unix_time = datetime.now(timezone.utc).timestamp()
+        dt = datetime.fromtimestamp(unix_time, tz=ZoneInfo("UTC"))
+
+        return dt.astimezone(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %I:%M:%S %p %Z")
+
+
+    except(ValueError, IOError) as e:
+        print(f"Error: {e}")
+        return None
+
+
+# Connection class for webhooks (device message for web interface)
 class ConnectionManager:
 
     def __init__(self):
         self.active: List[WebSocket] = []
 
-    def get_time(self):
-        try:
-            # tbroker = TimeBrokerFacade(ntp_server_ip = '192.168.1.76')
-        
-            unix_time = datetime.now(timezone.utc).timestamp()
-
-            dt = datetime.fromtimestamp(unix_time, tz=ZoneInfo("UTC"))
-
-            return dt.astimezone(ZoneInfo("America/Chicago")).strftime("%Y-%m-%d %I:%M:%S %p %Z")
-
-
-        except(ValueError, IOError) as e:
-            print(f"Error: {e}")
-
+    # Webhook connect
     async def connect(self, ws: WebSocket):
 
         await ws.accept()
         self.active.append(ws)
 
+    # Webhook Disconnect
     def disconnect(self, ws: WebSocket):
 
         if ws in self.active:
             self.active.remove(ws)
 
+    # Send message from source to web interface
     async def broadcast_json(self, payload: dict):
 
         payload = payload.copy()
-        payload["timestamp"] = self.get_time()
+        payload["timestamp"] = get_time()
 
         msg = json.dumps(payload)
         for ws in self.active:
@@ -47,6 +49,7 @@ class ConnectionManager:
             except Exception:
                 self.disconnect(ws)
 
+# Global managers for use in other scripts
 camera_manager = ConnectionManager()
 imu_manager = ConnectionManager()
 robot_manager = ConnectionManager()

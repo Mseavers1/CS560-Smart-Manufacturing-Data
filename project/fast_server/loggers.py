@@ -13,7 +13,8 @@ formatter = logging.Formatter(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-def create_logger(logger, name):
+# Creates all 3 loggers, but not the system logger -- Creates once a session is started
+def create_logger(name):
     
     LOG_DIR = Path("/fast_server/logs")
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -31,7 +32,7 @@ def create_logger(logger, name):
     
     return logger
 
-
+# Creates a system logger -- Created on system turned on or refresh if new day occurred
 def create_system_logger() -> None:
     global system_logger, system_logger_date
 
@@ -40,16 +41,15 @@ def create_system_logger() -> None:
     # Recreate logger if date changes
     if system_logger is None or system_logger_date != utc_date:
         system_logger_date = utc_date
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        system_logger = create_logger("system_logger", timestamp)
+        system_logger = create_logger("system_logger")
 
         system_logger.info(f"Created new system logger for {utc_date}")
 
-
-def log_system_logger(msg: str, isError: bool = False) -> None:
+# Helper method to access loggers and add information to them
+def log_system_logger(msg: str, is_error: bool = False) -> None:
     create_system_logger()
 
-    if isError:
+    if is_error:
         system_logger.error(msg)
     else:
         system_logger.info(msg)
