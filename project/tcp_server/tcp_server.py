@@ -1,38 +1,33 @@
-# fast_server/tcp_server.py
-import os
-import asyncio
+import os, asyncio, aiohttp, time
 from typing import Optional, Tuple
 from datetime import datetime
 from app import loggers
 from db.database import DatabaseSingleton
-import aiohttp
-import time
 from zoneinfo import ZoneInfo
 
-
-queue_size = float(os.getenv("QUEUE_SIZE", 5000)) 
-
+# Batched info for ROBOT
+queue_size = float(os.getenv("QUEUE_SIZE", 5000))
 robot_queue = asyncio.Queue(maxsize=queue_size)
 
+# Helper to send messages from TCP server to FASTAPI server
 async def send_to_fastapi(msg: str, msg_type: str = "normal"):
 
-    url = "http://192.168.1.76:8000/send/robot"
+    url = f"http:{os.getenv("HOST_IP")}//:{os.getenv("FASTAPI_PORT")}/send/robot"
 
     payload = {
         "type": msg_type,
         "text": msg
     }
 
+    # Attempts to send message to FASTAPI server
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload) as resp:
                 if resp.status != 200:
                     text = await resp.text()
-                    print(f"[ERROR] FastAPI broadcast failed ({resp.status}): {text}")
-                else:
-                    print(f"[OK] Sent broadcast to /send/robot")
+                    print(f"FastAPI broadcast failed ({resp.status}): {text}")
     except Exception as e:
-        print(f"[ERROR] Could not reach FastAPI API: {e}")
+        print(f"Could not reach FastAPI API: {e}")
 
 # Continuously comsumes the queue and performs batched DB insertions
 async def robot_worker(batch_size=50, flush_interval=2.0):
@@ -127,7 +122,7 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
         await writer.wait_closed()
         loggers.cur_robot_logger.info("Writer Closed")
 
-
+# Starts the TCP server
 async def start_tcp_server(host: Optional[str] = None, port: int = 5001):
     host = host or os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("ROBOT_TCP_PORT", port))

@@ -69,6 +69,7 @@ services:
       - B_TIMEOUT=${B_TIMEOUT}
       - QUEUE_SIZE=${QUEUE_SIZE}
       - ROBOT_TCP_PORT=5001
+      - HOST_IP=${HOST_IP}
     ports:
       - "${ROBOT_TCP_PORT}:5001"
     volumes:
