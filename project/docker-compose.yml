@@ -13,28 +13,29 @@ services:
 
   fastapi-app:
     build: .
-    container_name: fastapi-app
+    container_name: fastapi-fast_server
     env_file:
       - .env
     environment:
-      # existing
       - MQTT_HOST=mqtt-broker
       - NTP_SERVER=ntp
-      - ROBOT_TCP_PORT=5001
-      - MQTT_PORT=1883
       - PGHOST=192.168.1.111
-      - PGPORT=5433
       - PGUSER=${DB_USER}
       - PGPASSWORD=${DB_PASSWORD}
       - PGDATABASE=${DB_NAME}
-      - BATCHES=${BATCHES}
+      # Batched Config
       - QUEUE_SIZE=${QUEUE_SIZE}
       - B_TIMEOUT=${B_TIMEOUT}
+      - BATCHES=${BATCHES}
+      # Ports
+      - MQTT_PORT=${MQTT_PORT}
+      - ROBOT_TCP_PORT=${ROBOT_TCP_PORT}
+      - PGPORT=${PGPORT}
     ports:
       - "8000:8000"
     volumes:
       - nas_backups:/db_backups
-      - logs:/app/logs
+      - logs:/fast_server/logs
     depends_on:                
       - mqtt-broker
 
@@ -52,7 +53,7 @@ services:
       context: .            
       dockerfile: tcp_server/dockerfile
 
-    container_name: tcp-server
+    container_name: tcp-fast_server
     env_file:
       - .env
     environment:
@@ -69,7 +70,7 @@ services:
     ports:
       - "5001:5001"
     volumes:
-      - logs:/app/logs
+      - logs:/fast_server/logs
       
 
   ntp:

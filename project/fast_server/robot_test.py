@@ -1,6 +1,6 @@
 import socket
 
-HOST = "192.168.1.76"  # or external IP of your server
+HOST = "192.168.1.76"  # or external IP of your fast_server
 PORT = 5001
 
 message = (

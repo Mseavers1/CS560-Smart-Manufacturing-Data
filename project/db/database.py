@@ -1,15 +1,10 @@
-# app/database_singleton.py
-import asyncio
-import os
-import asyncpg
+import asyncio, asyncpg, os, subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from app import loggers
-import subprocess
-from package.client import Client
-from app.connection_manager import camera_manager, imu_manager, robot_manager, misc_manager
+from fastapi_server import loggers
+from fastapi_server.connection_manager import camera_manager, imu_manager, robot_manager, misc_manager
 
-
+# Custom Errors
 class SessionNotStarted(Exception):
 
     def __init__(self, message, data=None):
@@ -24,13 +19,13 @@ class ExistingSessionLabel(Exception):
         self.data = data
         self.message = message
 
-
 class MissingDatabaseDetails(Exception):
 
     def __init__(self, message, data=None):
         super().__init__(message)
         self.data = data
         self.message = message
+
 
 class DatabaseSingleton:
     _instance = None
@@ -212,51 +207,6 @@ class DatabaseSingleton:
         env = {**os.environ, "PGPASSWORD": os.environ["PGPASSWORD"]}
         subprocess.run(cmd, check=True, env=env)
         return str(out)
-
-    async def get_latest_imu(self):
-
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch("""
-                SELECT *
-                FROM imu_measurement
-                ORDER BY recorded_at DESC
-                LIMIT 5
-            """)
-        
-        # Convert to json
-        data = [dict(r) for r in rows]
-
-        return data
-
-    async def get_latest_camera(self):
-
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch("""
-                SELECT *
-                FROM image_detection
-                ORDER BY recorded_at DESC
-                LIMIT 5
-            """)
-        
-        # Convert to json
-        data = [dict(r) for r in rows]
-
-        return data
-
-    async def get_latest_robot(self):
-
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch("""
-                SELECT *
-                FROM robot
-                ORDER BY recorded_at DESC
-                LIMIT 5
-            """)
-        
-        # Convert to json
-        data = [dict(r) for r in rows]
-
-        return data
 
     async def retrieve_imu(self, session_label):
 

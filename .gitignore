@@ -1,4 +1,4 @@
 digital-twin/
 digital-twin/node_modules/.bin/loose-envify
-/project/app/venv/
+/project/fast_server/venv/
 /project/.env

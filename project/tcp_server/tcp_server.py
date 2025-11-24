@@ -1,4 +1,4 @@
-# app/tcp_server.py
+# fast_server/tcp_server.py
 import os
 import asyncio
 from typing import Optional, Tuple
@@ -146,14 +146,14 @@ async def start_tcp_server(host: Optional[str] = None, port: int = 5001):
 
 def main():
     loggers.create_loggers()
-    loggers.cur_robot_logger.info("Starting TCP server...")
+    loggers.cur_robot_logger.info("Starting TCP fast_server...")
 
     try:
         asyncio.run(start_tcp_server())
     except KeyboardInterrupt:
-        loggers.cur_robot_logger.info("TCP server stopped by user.")
+        loggers.cur_robot_logger.info("TCP fast_server stopped by user.")
     except Exception as e:
-        loggers.cur_robot_logger.error(f"TCP server crashed: {e}")
+        loggers.cur_robot_logger.error(f"TCP fast_server crashed: {e}")
     finally:
         asyncio.run(DatabaseSingleton.close())
 

@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 cur_camera_logger: logging.Logger | None = None
@@ -15,7 +15,7 @@ formatter = logging.Formatter(
 
 def create_logger(logger, name):
     
-    LOG_DIR = Path("/app/logs")
+    LOG_DIR = Path("/fast_server/logs")
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
