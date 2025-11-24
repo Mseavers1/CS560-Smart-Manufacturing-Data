@@ -1,8 +1,8 @@
 import os, asyncio, aiohttp, time
 from typing import Optional, Tuple
 from datetime import datetime
-from project.fast_server import loggers
-from project.db.database import DatabaseSingleton
+from fast_server import loggers
+from db.database import DatabaseSingleton
 from zoneinfo import ZoneInfo
 
 # Batched info for ROBOT
@@ -11,15 +11,16 @@ robot_queue = asyncio.Queue(maxsize=queue_size)
 
 # Helper to send messages from TCP server to FASTAPI server
 async def send_to_fastapi(msg: str, msg_type: str = "normal"):
+    host = os.getenv("FASTAPI_HOST", os.getenv("HOST_IP", "localhost"))
+    port = os.getenv("FASTAPI_PORT", "8000")
 
-    url = f"http:{os.getenv("HOST_IP")}//:{os.getenv("FASTAPI_PORT")}/send/robot"
+    url = f"http://{host}:{port}/send/robot"
 
     payload = {
         "type": msg_type,
-        "text": msg
+        "text": msg,
     }
 
-    # Attempts to send message to FASTAPI server
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload) as resp:
@@ -28,6 +29,7 @@ async def send_to_fastapi(msg: str, msg_type: str = "normal"):
                     print(f"FastAPI broadcast failed ({resp.status}): {text}")
     except Exception as e:
         print(f"Could not reach FastAPI API: {e}")
+
 
 # Continuously comsumes the queue and performs batched DB insertions
 async def robot_worker(batch_size=50, flush_interval=2.0):

@@ -1,16 +1,15 @@
 import asyncio, os
 
-from project.fast_server.loggers import log_system_logger, create_loggers, cur_camera_logger, cur_imu_logger, \
-    cur_robot_logger
+from fast_server import loggers
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi_mqtt import FastMQTT, MQTTConfig
-from project.db.database import DatabaseSingleton
+from db.database import DatabaseSingleton
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
-from project.fast_server.connection_manager import camera_manager, imu_manager, robot_manager, misc_manager, MANAGERS, broadcast_message
+from fast_server.connection_manager import camera_manager, imu_manager, robot_manager, misc_manager, MANAGERS, broadcast_message
 from typing import Any
 
-from project.fast_server.parsing import parse_camera_message, parse_imu_message
+from fast_server.parsing import parse_camera_message, parse_imu_message
 
 # MQTT Config Setup
 mqtt_config = MQTTConfig(
@@ -66,7 +65,7 @@ async def try_backup() -> dict[str, Any]:
 
         # Messages
         await broadcast_message(misc_manager, f"Failed to backup DB: {e}", "error")
-        log_system_logger(f"Failed to backup DB: {e}", True)
+        loggers.log_system_logger(f"Failed to backup DB: {e}", True)
 
         return {
             "success": False,
@@ -83,7 +82,7 @@ async def camera_ws(websocket: WebSocket) -> None:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        log_system_logger(f"Camera WB Error: {e}", True)
+        loggers.log_system_logger(f"Camera WB Error: {e}", True)
     finally:
         camera_manager.disconnect(websocket)
 
@@ -97,7 +96,7 @@ async def robot_ws(websocket: WebSocket) -> None:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        log_system_logger(f"Robot WB Error: {e}", True)
+        loggers.log_system_logger(f"Robot WB Error: {e}", True)
     
     finally:
         robot_manager.disconnect(websocket)
@@ -112,7 +111,7 @@ async def imu_ws(websocket: WebSocket) -> None:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        log_system_logger(f"IMU WB Error: {e}", True)
+        loggers.log_system_logger(f"IMU WB Error: {e}", True)
     finally:
         imu_manager.disconnect(websocket)
 
@@ -126,7 +125,7 @@ async def misc_ws(websocket: WebSocket) -> None:
         while True:
             await asyncio.sleep(3600)
     except Exception as e:
-        log_system_logger(f"Misc WB Error: {e}", True)
+        loggers.log_system_logger(f"Misc WB Error: {e}", True)
     finally:
         misc_manager.disconnect(websocket)
 
@@ -191,7 +190,7 @@ async def restore_backup(filename: str) -> dict[str, Any]:
 
         # Messages
         await broadcast_message(misc_manager, f"Restore failed: {e}", "error")
-        log_system_logger(f"Failed to restore backup: {e}", True)
+        loggers.log_system_logger(f"Failed to restore backup: {e}", True)
 
         return {"success": False, "error": str(e)}
 
@@ -204,7 +203,7 @@ async def get_sessions() -> dict[str, Any]:
 
     return {"data": data, "success": True}
   except Exception as e:
-    log_system_logger(f"Failed to pull sessions: {e}", True)
+    loggers.log_system_logger(f"Failed to pull sessions: {e}", True)
     await broadcast_message(misc_manager, f"Failed to pull sessions: {e}", "error")
 
     return {"error": str(e), "success": False}
@@ -220,7 +219,7 @@ async def get_running_session() -> dict[str, Any]:
         return {"id": sess_id if sess_id != None else -404, "data": sess_id != None, "success": True}
 
     except Exception as e:
-        log_system_logger(f"Failed to get current session: {e}", True)
+        loggers.log_system_logger(f"Failed to get current session: {e}", True)
         await broadcast_message(misc_manager, f"Failed to get current session: {e}", "error")
 
         return {"error": str(e), "success": False}
@@ -235,7 +234,7 @@ async def get_imu(label: str) -> dict[str, Any]:
 
     return {"data": data, "success": True}
   except Exception as e:
-    log_system_logger(f"Failed to pull IMU data from session '{label}': {e}", True)
+    loggers.log_system_logger(f"Failed to pull IMU data from session '{label}': {e}", True)
     await broadcast_message(misc_manager, f"Failed to pull IMU data from session {label}: {e}", "error")
 
     return {"error": str(e), "success": False}
@@ -250,7 +249,7 @@ async def get_camera(label: str) -> dict[str, Any]:
 
     return {"data": data, "success": True}
   except Exception as e:
-    log_system_logger(f"Failed to pull CAMERA data from session '{label}': {e}", True)
+    loggers.log_system_logger(f"Failed to pull CAMERA data from session '{label}': {e}", True)
     await broadcast_message(misc_manager, f"Failed to pull CAMERA data from session {label}: {e}", "error")
 
     return {"error": str(e), "success": False}
@@ -265,7 +264,7 @@ async def get_robot(label: str) -> dict[str, Any]:
 
     return {"data": data, "success": True}
   except Exception as e:
-    log_system_logger(f"Failed to pull ROBOT data from session '{label}': {e}", True)
+    loggers.log_system_logger(f"Failed to pull ROBOT data from session '{label}': {e}", True)
     await broadcast_message(misc_manager, f"Failed to pull ROBOT data from session {label}: {e}", "error")
 
     return {"error": str(e), "success": False}
@@ -275,27 +274,27 @@ async def get_robot(label: str) -> dict[str, Any]:
 async def start_session(label: str) -> dict[str, Any]:
 
     # Create new logs for this new session only
-    create_loggers()
+    loggers.create_loggers()
 
     # Prep logs and prepare session id
     try:
         db = app.state.db
         await db.create_session(label=label)
 
-        log_system_logger(f"System session created with label: {label}")
-        cur_camera_logger.info(f"Camera session ready with label: {label}")
-        cur_imu_logger.info(f"IMU session ready with label: {label}")
-        cur_robot_logger.info(f"Robot session ready with label: {label}")
+        loggers.log_system_logger(f"System session created with label: {label}")
+        loggers.cur_camera_logger.info(f"Camera session ready with label: {label}")
+        loggers.cur_imu_logger.info(f"IMU session ready with label: {label}")
+        loggers.cur_robot_logger.info(f"Robot session ready with label: {label}")
 
         await broadcast_message(misc_manager, "Session started with logs successfully")
 
         return {"message": f"Session started with label: {label}", "success": True}
     except Exception as e:
 
-        log_system_logger(f"Failed to start session '{label}': {e}", True)
-        cur_camera_logger.error(f"Camera session failed to start with label: {label}. Error: {e}")
-        cur_imu_logger.error(f"IMU session failed to start with label: {label}. Error: {e}")
-        cur_robot_logger.error(f"Robot session failed to start with label: {label}. Error: {e}")
+        loggers.log_system_logger(f"Failed to start session '{label}': {e}", True)
+        loggers.cur_camera_logger.error(f"Camera session failed to start with label: {label}. Error: {e}")
+        loggers.cur_imu_logger.error(f"IMU session failed to start with label: {label}. Error: {e}")
+        loggers.cur_robot_logger.error(f"Robot session failed to start with label: {label}. Error: {e}")
 
         await broadcast_message(misc_manager, f"Failed to start a session with label '{label}': {e}", "error")
 
@@ -310,10 +309,10 @@ async def stop_session() -> dict[str, Any]:
     db = app.state.db
     await db.end_session()
 
-    log_system_logger("System session stopped successfully")
-    cur_camera_logger.info(f"Camera session ended.")
-    cur_imu_logger.info(f"IMU session ended.")
-    cur_robot_logger.info(f"Robot session ended.")
+    loggers.log_system_logger("System session stopped successfully")
+    loggers.cur_camera_logger.info(f"Camera session ended.")
+    loggers.cur_imu_logger.info(f"IMU session ended.")
+    loggers.cur_robot_logger.info(f"Robot session ended.")
 
     await broadcast_message(misc_manager, "Session ended with logs successfully")
 
@@ -322,10 +321,10 @@ async def stop_session() -> dict[str, Any]:
     return {"message": f"Current Session Ended", "backup": msg, "success": True}
   except Exception as e:
 
-    log_system_logger(f"Failed to stop the current session: {e}", True)
-    cur_camera_logger.error(f"Camera session failed to stop. Error: {e}")
-    cur_imu_logger.error(f"IMU session failed to stop. Error: {e}")
-    cur_robot_logger.error(f"Robot session failed to stop. Error: {e}")
+    loggers.log_system_logger(f"Failed to stop the current session: {e}", True)
+    loggers.cur_camera_logger.error(f"Camera session failed to stop. Error: {e}")
+    loggers.cur_imu_logger.error(f"IMU session failed to stop. Error: {e}")
+    loggers.cur_robot_logger.error(f"Robot session failed to stop. Error: {e}")
 
     await broadcast_message(misc_manager, f"Failed to stop the current session: {e}", "error")
 
@@ -339,7 +338,7 @@ async def startup():
     app.state.db = await DatabaseSingleton.get_instance()
 
     # Creates the loggers instances to be ready
-    create_loggers()
+    loggers.create_loggers()
 
     # Creates workers for IMU and CAMERA
     asyncio.create_task(camera_worker(batch_size=int(os.getenv("BATCHES", 50)), flush_interval=float(os.getenv("B_TIMEOUT"))))
@@ -373,13 +372,13 @@ async def camera_worker(batch_size=50, flush_interval=2.0) -> None:
             try:
                 await db.insert_camera_batch(batch)
 
-                cur_camera_logger.info(f"Inserted {len(batch)} CAMERA rows")
+                loggers.cur_camera_logger.info(f"Inserted {len(batch)} CAMERA rows")
                 await broadcast_message(camera_manager, f"Inserted {len(batch)} CAMERA rows")
 
                 batch.clear()
                 last_flush = now
             except Exception as e:
-                cur_camera_logger.error(f"CAMERA batch insert failed: {e}")
+                loggers.cur_camera_logger.error(f"CAMERA batch insert failed: {e}")
                 await broadcast_message(camera_manager, f"CAMERA batch insert failed: {e}", "error")
 
                 await asyncio.sleep(1)
@@ -407,13 +406,13 @@ async def imu_worker(batch_size=50, flush_interval=2.0) -> None:
             try:
                 await db.insert_imu_batch(batch)
 
-                cur_imu_logger.info(f"Inserted {len(batch)} IMU rows")
+                loggers.cur_imu_logger.info(f"Inserted {len(batch)} IMU rows")
                 await broadcast_message(imu_manager, f"Inserted {len(batch)} IMU rows")
 
                 batch.clear()
                 last_flush = now
             except Exception as e:
-                cur_imu_logger.error(f"IMU batch insert failed: {e}")
+                loggers.cur_imu_logger.error(f"IMU batch insert failed: {e}")
                 await broadcast_message(imu_manager, f"IMU batch insert failed: {e}", "error")
 
                 await asyncio.sleep(1)
@@ -426,7 +425,7 @@ async def handle_sensors(client, topic, payload, qos, prop) -> None:
         data = parse_imu_message(topic, payload)
         await imu_queue.put(data)
     except Exception as e:
-        cur_imu_logger.error(f"IMU parse error: {e}")
+        loggers.cur_imu_logger.error(f"IMU parse error: {e}")
         await broadcast_message(imu_manager, f"IMU parse error: {e}", "error")
 
 # MQTT Subscription for CAMERA device topics
@@ -438,5 +437,5 @@ async def handle_camera(client, topic, payload, qos, prop) -> None:
         await camera_queue.put(data)
 
     except Exception as e:
-        cur_camera_logger.error(f"Camera parse error: {e}")
+        loggers.cur_camera_logger.error(f"Camera parse error: {e}")
         await broadcast_message(camera_manager, f"Camera parse error: {e}", "error")

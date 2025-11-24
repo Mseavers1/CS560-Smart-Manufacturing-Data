@@ -1,8 +1,8 @@
 import asyncio, asyncpg, os, subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from project.fast_server import loggers
-from project.fast_server.connection_manager import misc_manager, broadcast_message
+from fast_server import loggers
+from fast_server.connection_manager import misc_manager, broadcast_message
 
 
 # Custom Errors
@@ -26,14 +26,6 @@ class MissingDatabaseDetails(Exception):
         super().__init__(message)
         self.data = data
         self.message = message
-
-# DB container only -- Get time
-def get_time():
-    try:
-        return datetime.now(timezone.utc).timestamp()
-    except (ValueError, IOError) as e:
-        loggers.log_system_logger(f"DB could not get UTC time: {e}")
-        return 0
 
 # Singleton of Database (only 1 per container)
 class DatabaseSingleton:
@@ -90,6 +82,13 @@ class DatabaseSingleton:
             await cls._instance.pool.close()
             cls._instance = None
             loggers.log_system_logger("Database pool closed.")
+
+    def get_time(self):
+        try:
+            return datetime.now(timezone.utc).timestamp()
+        except (ValueError, IOError) as e:
+            loggers.log_system_logger(f"DB could not get UTC time: {e}")
+            return 0
 
     # Gets the latest session if there is one active
     async def get_latest_session(self):
@@ -195,7 +194,7 @@ class DatabaseSingleton:
         backup_dir = Path("/db_backups")
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        ts = datetime.fromtimestamp(get_time(), tz=timezone.utc).strftime("%Y%m%d_%H%M%S_UTC")
+        ts = datetime.fromtimestamp(self.get_time(), tz=timezone.utc).strftime("%Y%m%d_%H%M%S_UTC")
         db = os.environ["PGDATABASE"]
         out = backup_dir / f"{db}_{ts}.dump"
 
@@ -342,13 +341,13 @@ class DatabaseSingleton:
         # Get device ID & Session ID
         device_id = await self.get_or_create_device_id("main", "robot")
 
-        insert_time = get_time()
+        insert_time = self.get_time()
 
         records = [
             (
                 d["ts"], d["joint1"], d["joint2"], d["joint3"], d["joint4"], d["joint5"], d["joint6"],
                 d["x"], d["y"], d["z"], d["w"], d["p"], d["r"], d["recorded_at"],
-                get_time(), device_id, session_id
+                self.get_time(), device_id, session_id
             )
             for d in batch
         ]
@@ -386,7 +385,7 @@ class DatabaseSingleton:
 
                 await conn.execute(
                     "INSERT INTO robot (ts_epoch, joint_1, joint_2, joint_3, joint_4, joint_5, joint_6, x, y, z, w, p, r, recorded_at, ingested_at, device_id, session_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
-                    ts_int, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at, get_time(), device_id, session_id
+                    ts_int, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at, self.get_time(), device_id, session_id
                 )
 
     # Batched insertion for IMU
@@ -408,7 +407,7 @@ class DatabaseSingleton:
                         d["gyro_x"], d["gyro_y"], d["gyro_z"],
                         d["mag_x"], d["mag_y"], d["mag_z"],
                         d["yaw"], d["pitch"], d["roll"],
-                        d["recorded_at"], get_time()
+                        d["recorded_at"], self.get_time()
                     ))
 
                 await conn.executemany("""
@@ -444,7 +443,7 @@ class DatabaseSingleton:
 
                 await conn.execute(
                     "INSERT INTO imu_measurement (device_id, session_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, mag_x, mag_y, mag_z, yaw, pitch, roll, recorded_at, ingested_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
-                    device_id, session_id, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll, recorded_at, get_time()
+                    device_id, session_id, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll, recorded_at, self.get_time()
                 )
 
     # Batched insertion for CAMERA
@@ -475,7 +474,7 @@ class DatabaseSingleton:
                         d["tvec_x"], d["tvec_y"], d["tvec_z"],
                         d["image_path"], d["recorded_at"],
                         await self.get_or_create_device_id(d["device_label"], "camera"),
-                        session_id, get_time()
+                        session_id, self.get_time()
                     )
                     for d in batch
                 ])
@@ -499,7 +498,7 @@ class DatabaseSingleton:
 
                 await conn.execute(
                     "INSERT INTO image_detection (frame_idx, marker_idx, rvec_x, rvec_y, rvec_z, tvec_x, tvec_y, tvec_z, image_path, recorded_at, device_id, session_id, ingested_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
-                    frame_idx, marker_idx, rvec_x, rvec_y, rvec_z, tvec_x, tvec_y, tvec_z, image_path, recorded_at, device_id, session_id, get_time()
+                    frame_idx, marker_idx, rvec_x, rvec_y, rvec_z, tvec_x, tvec_y, tvec_z, image_path, recorded_at, device_id, session_id, self.get_time()
                 )
 
     # Insert into session device
@@ -581,7 +580,7 @@ class DatabaseSingleton:
                 """
                 INSERT INTO session (label, started_at) VALUES ($1, $2) RETURNING id
                 """,
-                label, get_time()
+                label, self.get_time()
             )
 
         self.current_session_id = session_id
@@ -604,7 +603,7 @@ class DatabaseSingleton:
                 SET ended_at = $1
                 WHERE id = $2
                 """,
-                get_time(),
+                self.get_time(),
                 session_id
             )
         
@@ -622,5 +621,5 @@ class DatabaseSingleton:
                 ON CONFLICT (label) DO UPDATE SET label = EXCLUDED.label
                 RETURNING id
                 """,
-                label, category, ip_address, get_time()
+                label, category, ip_address, self.get_time()
             )

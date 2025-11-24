@@ -59,6 +59,6 @@ def log_system_logger(msg: str, is_error: bool = False) -> None:
 def create_loggers() -> None:
     global cur_camera_logger, cur_imu_logger, cur_robot_logger
 
-    cur_camera_logger = create_logger(cur_camera_logger, "camera_logger")
-    cur_imu_logger = create_logger(cur_imu_logger, "imu_logger")
-    cur_robot_logger = create_logger(cur_robot_logger, "robot_logger")
+    cur_camera_logger = create_logger("camera_logger")
+    cur_imu_logger = create_logger("imu_logger")
+    cur_robot_logger = create_logger("robot_logger")
