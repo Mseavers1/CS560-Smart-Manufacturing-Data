@@ -1,0 +1,2 @@
+device_id,device_type,samples_requested,samples_completed,samples_sent,errors,duration_s,avg_rate_hz,success_rate,error
+dummy_robot_1,Robot TCP Client,100,100,100,0,10.011213958001463,9.988798603197868,100.0,

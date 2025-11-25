@@ -1,0 +1,4 @@
+device_id,device_type,samples_requested,samples_completed,samples_sent,errors,duration_s,avg_rate_hz,success_rate,error
+dummy_imu_1,IMU Client,150,150,150,0,30.011699166992912,4.998050898929812,100.0,
+dummy_camera_1,Camera Client,150,150,150,0,30.014387791001354,4.997603184329206,100.0,
+dummy_robot_1,Robot TCP Client,150,150,150,0,30.01537512500363,4.997438791795938,100.0,

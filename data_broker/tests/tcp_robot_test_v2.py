@@ -5,7 +5,7 @@ Robot TCP Data Flow Test Script — Full Logging + Return Stats Version
 import socket
 import pandas as pd
 import numpy as np
-import datetime
+from datetime import datetime
 import time
 from logging_config import logger, colorize
 

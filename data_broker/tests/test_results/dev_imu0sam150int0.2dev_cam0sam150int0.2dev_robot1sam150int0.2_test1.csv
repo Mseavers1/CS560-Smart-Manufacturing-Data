@@ -1,0 +1,2 @@
+device_id,device_type,samples_requested,samples_completed,samples_sent,errors,duration_s,avg_rate_hz,success_rate,error
+dummy_robot_1,Robot TCP Client,150,0,0,0,0.00034987498656846583,0.0,0.0,module 'datetime' has no attribute 'now'
