@@ -401,26 +401,60 @@ class DatabaseSingleton:
                 for d in batch:
                     device_id = await self.get_or_create_device_id(d["device_label"], "imu")
                     
+                    # records.append((
+                    #     device_id, session_id,
+                    #     d["accel_x"], d["accel_y"], d["accel_z"],
+                    #     d["gyro_x"], d["gyro_y"], d["gyro_z"],
+                    #     d["mag_x"], d["mag_y"], d["mag_z"],
+                    #     d["yaw"], d["pitch"], d["roll"],
+                    #     d["recorded_at"], self.get_time()
+                    # ))
+                    # revised
                     records.append((
-                        device_id, session_id,
+                        d["frame_id"], 
+                        d["capture_time"],
+                        d["recorded_at"], 
+                        self.get_time(), # <- ingested_at 
+                        device_id, 
+                        session_id,
                         d["accel_x"], d["accel_y"], d["accel_z"],
                         d["gyro_x"], d["gyro_y"], d["gyro_z"],
                         d["mag_x"], d["mag_y"], d["mag_z"],
                         d["yaw"], d["pitch"], d["roll"],
-                        d["recorded_at"], self.get_time()
                     ))
 
+                # await conn.executemany("""
+                #     INSERT INTO imu_measurement (
+                #         device_id, session_id,
+                #         accel_x, accel_y, accel_z,
+                #         gyro_x, gyro_y, gyro_z,
+                #         mag_x, mag_y, mag_z,
+                #         yaw, pitch, roll,
+                #         recorded_at, ingested_at
+                #     )
+                #     VALUES (
+                #         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+                #     )
+                # """, records)
                 await conn.executemany("""
                     INSERT INTO imu_measurement (
-                        device_id, session_id,
+                        frame_id,
+                        capture_time,
+                        recorded_at,
+                        ingested_at,
+                        device_id,
+                        session_id,
                         accel_x, accel_y, accel_z,
                         gyro_x, gyro_y, gyro_z,
                         mag_x, mag_y, mag_z,
-                        yaw, pitch, roll,
-                        recorded_at, ingested_at
+                        yaw, pitch, roll
                     )
                     VALUES (
-                        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+                        $1,$2,$3,$4,$5,$6,
+                        $7,$8,$9,
+                        $10,$11,$12,
+                        $13,$14,$15,
+                        $16,$17,$18
                     )
                 """, records)
 
