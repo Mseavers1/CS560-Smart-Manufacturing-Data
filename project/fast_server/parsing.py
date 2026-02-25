@@ -26,6 +26,7 @@ def parse_camera_message(topic, payload) -> dict[str, Any]:
             "capture_time": float(msg[1]),
             "recorded_at": float(msg[2]),
             "marker_idx": int(msg[3]),
+
             "rvec_x": float(msg[4]), "rvec_y": float(msg[5]), "rvec_z": float(msg[6]),
             "tvec_x": float(msg[7]), "tvec_y": float(msg[8]), "tvec_z": float(msg[9]),
 

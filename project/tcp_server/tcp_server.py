@@ -82,33 +82,37 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
                 try:
                     parts = [p.strip() for p in text.split(",")]
 
-                    ts_str = parts[0]
+                    # Expect: frame_id, ts_str, <unused?>, joint1..joint6, x,y,z,w,p,r
+                    # Minimum needed indices up to r:
+                    # frame_id=0, ts_int=1, ts_str=2, joint1=3, ..., r=14  => need at least 15 fields
+                    if len(parts) < 15:
+                        raise ValueError(f"Expected at least 15 fields, got {len(parts)}")
 
-                    try:
-                        dt = datetime.strptime(ts_str, "%m/%d/%Y %H:%M")
-                        local_dt = dt.replace(tzinfo=ZoneInfo("US/Eastern"))
-                        utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
-                        ts_epoch = int(utc_dt.timestamp())
-
-                    except Exception as e:
-                        ts_epoch = int(-1)
-
+                    frame_id = int(parts[0])
+                    ts_epoch = int(parts[1])   # ts_int from robot (already epoch)
+                    ts_str = parts[2]          # keep if you want to store/log it; no parsing needed
 
                     data = {
+                        "frame_id": frame_id,
                         "ts": ts_epoch,
-                        "joint1": float(parts[2]),
-                        "joint2": float(parts[3]),
-                        "joint3": float(parts[4]),
-                        "joint4": float(parts[5]),
-                        "joint5": float(parts[6]),
-                        "joint6": float(parts[7]),
-                        "x": float(parts[8]),
-                        "y": float(parts[9]),
-                        "z": float(parts[10]),
-                        "w": float(parts[11]),
-                        "p": float(parts[12]),
-                        "r": float(parts[13]),
+
+                        "joint1": float(parts[3]),
+                        "joint2": float(parts[4]),
+                        "joint3": float(parts[5]),
+                        "joint4": float(parts[6]),
+                        "joint5": float(parts[7]),
+                        "joint6": float(parts[8]),
+
+                        "x": float(parts[9]),
+                        "y": float(parts[10]),
+                        "z": float(parts[11]),
+                        "w": float(parts[12]),
+                        "p": float(parts[13]),
+                        "r": float(parts[14]),
+
                         "recorded_at": db.get_time(),
+                        # Optional if your DB stores it:
+                        # "ts_str": ts_str,
                     }
 
                     await robot_queue.put(data)
