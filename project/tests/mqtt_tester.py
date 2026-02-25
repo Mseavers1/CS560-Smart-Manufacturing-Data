@@ -1,4 +1,3 @@
-
 """
 mqtt_tester.py
 Improved IMU and Camera MQTT publishing test utilities.
@@ -52,39 +51,27 @@ def create_imu_csv(num_records: int = 1) -> list[str]:
 
 def create_camera_csv(num_records: int = 1) -> list[str]:
     """
-    Generates mock Camera CSV rows in the exact order expected by parse_camera_message:
-    frame_idx, capture_time, recorded_at, marker_idx, rvec_x, rvec_y, rvec_z, tvec_x, tvec_y, tvec_z
-    Returns list[str] (one CSV row per element).
+    Generates mock Camera CSV rows.
+    Returns list[str].
     """
     now = pd.Timestamp.now()
-
-    # Use ms timestamps (matches what you were doing); adjust if you want seconds
     recorded_at = np.arange(num_records) * 33 + int(now.timestamp() * 1000)
 
     df = pd.DataFrame({
-        "frame_idx": np.arange(num_records, dtype=np.int64),
-        "capture_time": np.random.uniform(0, 10, num_records),
-        "recorded_at": recorded_at.astype(np.float64),
-        "marker_idx": np.arange(num_records, dtype=np.int64),
-        "rvec_x": np.random.uniform(-3.14, 3.14, num_records),
-        "rvec_y": np.random.uniform(-3.14, 3.14, num_records),
-        "rvec_z": np.random.uniform(-3.14, 3.14, num_records),
-        "tvec_x": np.random.uniform(-100, 100, num_records),
-        "tvec_y": np.random.uniform(-100, 100, num_records),
-        "tvec_z": np.random.uniform(0, 500, num_records),
+        "recorded_at": recorded_at,
+        "frame_idx": np.arange(num_records),
+        "capture_time": recorded_at,
+        "marker_idx": np.random.randint(0, 10, num_records),
+        "rvecx": np.random.uniform(-3.14, 3.14, num_records),
+        "rvecy": np.random.uniform(-3.14, 3.14, num_records),
+        "rvecz": np.random.uniform(-3.14, 3.14, num_records),
+        "tvecx": np.random.uniform(-100, 100, num_records),
+        "tvecy": np.random.uniform(-100, 100, num_records),
+        "tvecz": np.random.uniform(0, 500, num_records)
     })
+    return df.to_csv(index=False, header=False).strip().splitlines()
 
-    # Force exact column order for CSV output (this is the key fix)
-    cols = [
-        "frame_idx",
-        "capture_time",
-        "recorded_at",
-        "marker_idx",
-        "rvec_x", "rvec_y", "rvec_z",
-        "tvec_x", "tvec_y", "tvec_z",
-    ]
 
-    return df[cols].to_csv(index=False, header=False).strip().splitlines()
 # -----------------------------
 # FIXED-SCHEDULE SENDER
 # -----------------------------
@@ -252,8 +239,3 @@ if __name__ == "__main__":
     logger.info(colorize("Camera Client", "Manual mode: sending 10 Camera samples"))
     result = test_camera_client(10, 0.1, id="manual_test")
     print(f"\nTest result: {result}")
-    rows = create_camera_csv(1)
-    print(rows[0])
-    # should look like: 0,0.85149,1708...,3, ... etc
-
-
