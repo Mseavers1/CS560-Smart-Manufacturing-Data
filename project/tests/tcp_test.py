@@ -23,28 +23,63 @@ NUM_SAMPLES = 10
 # DATA CREATION
 # --------------------------------------------------------------
 
+# def create_robot_data(num_records: int = 10) -> list[str]:
+#     """
+#     Create robot telemetry rows (CSV strings).
+#     First value sent from actual robot is a string, second is an int, rest of the values are floats
+#     """
+#     timestamp_str = datetime.now().strftime("%m/%d/%Y %H:%M")
+
+#     timestamp_col = [timestamp_str] * num_records
+#     int_col = np.arange(1, num_records + 1, dtype=int)
+
+#     float_cols = {
+#         f"col_{i}": np.random.uniform(-100, 100, num_records)
+#         for i in range(2, 14)
+#     }
+
+#     df = pd.DataFrame({
+#         "col_0": timestamp_col, 
+#         "col_1": int_col,
+#         **float_cols
+#     })
+
+#     return df.to_csv(index=False, header=False).strip().splitlines()
+
 def create_robot_data(num_records: int = 10) -> list[str]:
     """
-    Create robot telemetry rows (CSV strings).
-    First value sent from actual robot is a string, second is an int, rest of the values are floats
+    Robot telemetry rows (CSV strings) in the exact order expected by your current robot parser:
+
+    frame_id, ts_int, ts_str, J1, J2, J3, J4, J5, J6, X, Y, Z, W, P, R
     """
-    timestamp_str = datetime.now().strftime("%m/%d/%Y %H:%M")
-
-    timestamp_col = [timestamp_str] * num_records
-    int_col = np.arange(1, num_records + 1, dtype=int)
-
-    float_cols = {
-        f"col_{i}": np.random.uniform(-100, 100, num_records)
-        for i in range(2, 14)
-    }
+    ts_str = datetime.now().strftime("%m/%d/%Y %H:%M")
+    ts_int_base = int(time.time())  # epoch seconds; change to *1000 if your robot uses ms
 
     df = pd.DataFrame({
-        "col_0": timestamp_col, 
-        "col_1": int_col,
-        **float_cols
+        "frame_id": np.arange(1, num_records + 1, dtype=np.int64),
+        "ts_int": (np.arange(num_records, dtype=np.int64) + ts_int_base),
+        "ts_str": [ts_str] * num_records,
+
+        "J1": np.random.uniform(-180, 180, num_records),
+        "J2": np.random.uniform(-180, 180, num_records),
+        "J3": np.random.uniform(-180, 180, num_records),
+        "J4": np.random.uniform(-180, 180, num_records),
+        "J5": np.random.uniform(-180, 180, num_records),
+        "J6": np.random.uniform(-180, 180, num_records),
+
+        "X": np.random.uniform(-1000, 1000, num_records),
+        "Y": np.random.uniform(-1000, 1000, num_records),
+        "Z": np.random.uniform(-1000, 1000, num_records),
+        "W": np.random.uniform(-180, 180, num_records),
+        "P": np.random.uniform(-180, 180, num_records),
+        "R": np.random.uniform(-180, 180, num_records),
     })
 
-    return df.to_csv(index=False, header=False).strip().splitlines()
+    cols = ["frame_id", "ts_int", "ts_str",
+            "J1", "J2", "J3", "J4", "J5", "J6",
+            "X", "Y", "Z", "W", "P", "R"]
+
+    return df[cols].to_csv(index=False, header=False).strip().splitlines()
 
 # --------------------------------------------------------------
 # TCP SEND TEST
