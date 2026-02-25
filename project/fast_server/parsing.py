@@ -16,20 +16,19 @@ def parse_camera_message(topic, payload) -> dict[str, Any]:
     msg = [part.strip() for part in payload.decode().split(",")]
 
     # If less parts, raise an error
-    if len(msg) < 9:
-        raise ValueError(f"Expected at least 9 fields, got {len(msg)}")
+    if len(msg) < 10:
+        raise ValueError(f"Expected at least 10 fields, got {len(msg)}")
 
     return {
             "device_label": device_label,
-            "recorded_at": float(msg[0]),
-            "frame_idx": int(msg[1]),
-            "marker_idx": int(msg[2]),
-            "rvec_x": float(msg[3]),
-            "rvec_y": float(msg[4]),
-            "rvec_z": float(msg[5]),
-            "tvec_x": float(msg[6]),
-            "tvec_y": float(msg[7]),
-            "tvec_z": float(msg[8]),
+
+            "frame_idx": int(msg[0]),
+            "capture_time": float(msg[1]),
+            "recorded_at": float(msg[2]),
+            "marker_idx": int(msg[3]),
+            "rvec_x": float(msg[4]), "rvec_y": float(msg[5]), "rvec_z": float(msg[6]),
+            "tvec_x": float(msg[7]), "tvec_y": float(msg[8]), "tvec_z": float(msg[9]),
+
             "image_path": "" # TODO - Remove image path from DB
     }
 
