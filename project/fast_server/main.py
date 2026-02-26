@@ -378,7 +378,7 @@ async def camera_worker(batch_size=50, flush_interval=2.0) -> None:
                 batch.clear()
                 last_flush = now
             except Exception as e:
-                loggers.cur_camera_logger.error(f"CAMERA batch insert failed: {e}")
+                loggers.cur_camera_logger.error(f"CAMERA batch insert failed: {e} {batch[0]}")
                 await broadcast_message(camera_manager, f"CAMERA batch insert failed: {e}", "error")
 
                 await asyncio.sleep(1)
