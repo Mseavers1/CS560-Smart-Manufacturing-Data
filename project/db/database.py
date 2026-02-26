@@ -344,7 +344,7 @@ class DatabaseSingleton:
         records = [
             (
                 d["frame_id"],     # NEW
-                d["ts"],
+                d["ts_epoch"],
                 d["joint1"], d["joint2"], d["joint3"], d["joint4"], d["joint5"], d["joint6"],
                 d["x"], d["y"], d["z"], d["w"], d["p"], d["r"],
                 d["recorded_at"],

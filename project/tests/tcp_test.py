@@ -48,36 +48,37 @@ NUM_SAMPLES = 10
 
 def create_robot_data(num_records: int = 10) -> list[str]:
     """
-    Robot telemetry rows (CSV strings) in the exact order expected by your current robot parser:
+    Robot telemetry rows (CSV strings) in the exact order expected by the current robot parser:
 
-    frame_id, ts_int, ts_str, J1, J2, J3, J4, J5, J6, X, Y, Z, W, P, R
+    frame_id, ts, ts_string, joint1, joint2, joint3, joint4, joint5, joint6, x, y, z, w, p, r
     """
-    ts_str = datetime.now().strftime("%m/%d/%Y %H:%M")
-    ts_int_base = int(time.time())  # epoch seconds; change to *1000 if your robot uses ms
+    ts_base = float(time.time())  # UNIX seconds as float
 
     df = pd.DataFrame({
         "frame_id": np.arange(1, num_records + 1, dtype=np.int64),
-        "ts_int": (np.arange(num_records, dtype=np.int64) + ts_int_base),
-        "ts_str": [ts_str] * num_records,
+        "ts_epoch": (ts_base + np.arange(num_records, dtype=np.float64)),
+        "ts_string": [str(ts_base + i) for i in range(num_records)],
 
-        "J1": np.random.uniform(-180, 180, num_records),
-        "J2": np.random.uniform(-180, 180, num_records),
-        "J3": np.random.uniform(-180, 180, num_records),
-        "J4": np.random.uniform(-180, 180, num_records),
-        "J5": np.random.uniform(-180, 180, num_records),
-        "J6": np.random.uniform(-180, 180, num_records),
+        "joint1": np.random.uniform(-180, 180, num_records),
+        "joint2": np.random.uniform(-180, 180, num_records),
+        "joint3": np.random.uniform(-180, 180, num_records),
+        "joint4": np.random.uniform(-180, 180, num_records),
+        "joint5": np.random.uniform(-180, 180, num_records),
+        "joint6": np.random.uniform(-180, 180, num_records),
 
-        "X": np.random.uniform(-1000, 1000, num_records),
-        "Y": np.random.uniform(-1000, 1000, num_records),
-        "Z": np.random.uniform(-1000, 1000, num_records),
-        "W": np.random.uniform(-180, 180, num_records),
-        "P": np.random.uniform(-180, 180, num_records),
-        "R": np.random.uniform(-180, 180, num_records),
+        "x": np.random.uniform(-1000, 1000, num_records),
+        "y": np.random.uniform(-1000, 1000, num_records),
+        "z": np.random.uniform(-1000, 1000, num_records),
+        "w": np.random.uniform(-180, 180, num_records),
+        "p": np.random.uniform(-180, 180, num_records),
+        "r": np.random.uniform(-180, 180, num_records),
     })
 
-    cols = ["frame_id", "ts_int", "ts_str",
-            "J1", "J2", "J3", "J4", "J5", "J6",
-            "X", "Y", "Z", "W", "P", "R"]
+    cols = [
+        "frame_id", "ts_epoch", "ts_string",
+        "joint1", "joint2", "joint3", "joint4", "joint5", "joint6",
+        "x", "y", "z", "w", "p", "r"
+    ]
 
     return df[cols].to_csv(index=False, header=False).strip().splitlines()
 
