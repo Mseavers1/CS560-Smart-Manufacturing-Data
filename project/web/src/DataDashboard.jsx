@@ -7,19 +7,20 @@ export default function DataDashboard() {
 
     const [activeSession, setActiveSession] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
+    const [sessionId, setSessionId] = useState(null); // track most recent session ID
 
-    useEffect(() => {
-
-        const getStatus = async () => {
-            try {
+    const getStatus = async () => {
+        try {
             const r = await fetch("http://192.168.1.76:8000/session");
             const json = await r.json();
             setActiveSession(json.data);
-            } catch (e) {
+            setSessionId(json.id === -404 ? null : json.id);
+        } catch (e) {
             sendMessage("camera", "error", "An unexpected error has occurred: " + e);
-            }
-        };
+        }
+    };
 
+    useEffect(() => {
         getStatus();
     }, []);
 
@@ -51,6 +52,8 @@ export default function DataDashboard() {
 
             if (data.success) {
                 setActiveSession(true);
+                // refresh session id from server
+                await getStatus();
                 sendMessage("misc", "info", "Session ready");
             } else {
                 sendMessage("misc", "error", "Failed to start session: " + data.error);
@@ -72,6 +75,7 @@ export default function DataDashboard() {
             if (data.success) {
                 sendMessage("misc", "info", "Session Stopped");
                 setActiveSession(false);
+                setSessionId(null);
             } else {
                 sendMessage("misc", "error", "Failed to stop the session: " + data.error);
             }
@@ -90,6 +94,7 @@ export default function DataDashboard() {
             {/* 2nd Top Bar -- Turn on and off a session */}
             <div className="fixed top-14 left-0 w-full flex justify-between items-center px-6 py-1 bg-gray-500 text-white shadow z-30">
                 <h2 className="text-base font-medium">Data Dashboard</h2>
+                <div className="text-sm ml-4">Most Recent Session: {sessionId ?? 'None'}</div>
 
                 <div className="flex gap-4">
 
