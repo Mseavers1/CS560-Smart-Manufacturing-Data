@@ -341,39 +341,7 @@ class DatabaseSingleton:
         # Use one ingested_at timestamp per batch flush (optional but nice)
         ingested_at = self.get_time()
 
-        records = [
-            (
-                d["frame_id"],     # NEW
-                d["ts_epoch"],
-                # ts_string no stored
-                d["joint1"], d["joint2"], d["joint3"], d["joint4"], d["joint5"], d["joint6"],
-                d["x"], d["y"], d["z"], d["w"], d["p"], d["r"],
-                d["recorded_at"],
-                
-                ingested_at,
-                device_id,
-                session_id
-            )
-            for d in batch
-        ]
 
-        async with self.pool.acquire() as conn:
-            async with conn.transaction():
-                await conn.executemany("""
-                    INSERT INTO robot (
-                        frame_id,
-                        ts_epoch,
-                        joint_1, joint_2, joint_3, joint_4, joint_5, joint_6,
-                        x, y, z, w, p, r,
-                        recorded_at,
-                        ingested_at,
-                        device_id,
-                        session_id
-                    )
-                    VALUES (
-                        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
-                    )
-                """, records)
 
     # Insertion for single item in DB
     async def insert_robot_data(self, frame_id, ts_int, j1, j2, j3, j4, j5, j6, x, y, z, w, p, r, recorded_at):
