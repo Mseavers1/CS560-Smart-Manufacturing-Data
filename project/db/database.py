@@ -345,9 +345,11 @@ class DatabaseSingleton:
             (
                 d["frame_id"],     # NEW
                 d["ts_epoch"],
+                # ts_string no stored
                 d["joint1"], d["joint2"], d["joint3"], d["joint4"], d["joint5"], d["joint6"],
                 d["x"], d["y"], d["z"], d["w"], d["p"], d["r"],
                 d["recorded_at"],
+                
                 ingested_at,
                 device_id,
                 session_id

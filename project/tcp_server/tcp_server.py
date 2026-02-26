@@ -97,12 +97,14 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
                         "frame_id": int(parts[0]), # count
                         "ts_epoch": float(parts[1]),
                         "ts_string": parts[2],
+
                         "joint1": float(parts[3]),
                         "joint2": float(parts[4]),
                         "joint3": float(parts[5]),
                         "joint4": float(parts[6]),
                         "joint5": float(parts[7]),
                         "joint6": float(parts[8]),
+                        
                         "x": float(parts[9]),
                         "y": float(parts[10]),
                         "z": float(parts[11]),
