@@ -1,4 +1,4 @@
-# When adding a column to the database follow these procedures.
+# On adding a database column, or changing edge node data order
 
 
 1. add the columns into the database
@@ -62,3 +62,5 @@
                 """, records)
     ```
     - some items here are obtained from the passed parser data, some items such as ingested_at and device_id are obtained elsewhere. It depends on the need and the data type.
+
+4. Restart and rebuild the docker compose. On the Data Broker Mini PC, run a ```docker compose down``` and then a ```docker compose up --build``` command. This will ensure that all changes are commited to the running instance of docker.
