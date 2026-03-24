@@ -1,0 +1,1 @@
+make sure to stop, then rebuild on a git pull on the production machine
