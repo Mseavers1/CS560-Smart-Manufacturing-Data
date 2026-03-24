@@ -1,15 +1,38 @@
-import os, asyncio, aiohttp, time
-from typing import Optional, Tuple
-from datetime import datetime
+import os
+import asyncio
+import aiohttp
+import time
+from typing import Optional
+import paho.mqtt.client as mqtt
+from pycomm3 import LogixDriver
+
 from fast_server import loggers
 from db.database import DatabaseSingleton
-from zoneinfo import ZoneInfo
+
+# -----------------------------
+# CONFIG
+# -----------------------------
+PLC_IP = os.getenv("PLC_IP", "1.1.1.1")  # 10.5.60.27, currently dummy 
+START_TAG = os.getenv("PLC_START_TAG", "Trigger_Wave")
+FINISH_TAG = os.getenv("PLC_FINISH_TAG", "Robot_Finished")
+
+MQTT_HOST = os.getenv("MQTT_HOST", os.getenv("HOST_IP", "localhost"))
+MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
+MQTT_COMMAND_TOPIC = os.getenv("ROBOT_COMMAND_TOPIC", "cmd/robot/start")
+
+ROBOT_FINISH_TIMEOUT = float(os.getenv("ROBOT_FINISH_TIMEOUT", 120.0))
 
 # Batched info for ROBOT
-queue_size = float(os.getenv("QUEUE_SIZE", 5000))
+queue_size = int(os.getenv("QUEUE_SIZE", 5000))
 robot_queue = asyncio.Queue(maxsize=queue_size)
 
-# Helper to send messages from TCP server to FASTAPI server
+# Prevent overlapping start commands
+robot_start_lock = asyncio.Lock()
+
+
+# -----------------------------
+# FASTAPI MESSAGE HELPER
+# -----------------------------
 async def send_to_fastapi(msg: str, msg_type: str = "normal"):
     host = os.getenv("FASTAPI_HOST", os.getenv("HOST_IP", "localhost"))
     port = os.getenv("FASTAPI_PORT", "8000")
@@ -31,7 +54,94 @@ async def send_to_fastapi(msg: str, msg_type: str = "normal"):
         print(f"Could not reach FastAPI API: {e}")
 
 
-# Continuously comsumes the queue and performs batched DB insertions
+# -----------------------------
+# PLC CONTROL
+# -----------------------------
+def run_plc_start_sequence_blocking() -> None:
+    loggers.cur_robot_logger.info(f"[PLC] Connecting to PLC at {PLC_IP}")
+
+    with LogixDriver(PLC_IP) as plc:
+        loggers.cur_robot_logger.info(f"[PLC] Pulsing '{START_TAG}' HIGH for 0.5 seconds")
+        plc.write(START_TAG, True)
+        time.sleep(0.5)
+        plc.write(START_TAG, False)
+
+        loggers.cur_robot_logger.info(f"[PLC] Waiting for '{FINISH_TAG}' feedback")
+        start_wait = time.monotonic()
+
+        while True:
+            response = plc.read(FINISH_TAG)
+
+            if response.value is True:
+                loggers.cur_robot_logger.info(f"[PLC] {FINISH_TAG} detected. Robot cycle complete")
+                return
+
+            if (time.monotonic() - start_wait) >= ROBOT_FINISH_TIMEOUT:
+                raise TimeoutError(
+                    f"Timed out after {ROBOT_FINISH_TIMEOUT:.1f}s waiting for PLC tag '{FINISH_TAG}'"
+                )
+
+            time.sleep(0.1)
+
+
+async def run_robot_start_sequence():
+    if robot_start_lock.locked():
+        loggers.cur_robot_logger.warning("Robot start command received while robot start is already in progress")
+        await send_to_fastapi("Robot start already in progress", "error")
+        return
+
+    async with robot_start_lock:
+        loggers.cur_robot_logger.info("Robot start command received")
+        await send_to_fastapi("Robot start command received")
+
+        try:
+            loggers.cur_robot_logger.info("Starting PLC handshake sequence")
+            await send_to_fastapi("Starting PLC handshake sequence")
+
+            await asyncio.to_thread(run_plc_start_sequence_blocking)
+
+            loggers.cur_robot_logger.info("Robot start sequence completed successfully")
+            await send_to_fastapi("Robot cycle complete")
+        except Exception as e:
+            loggers.cur_robot_logger.error(f"Robot start sequence failed: {e}")
+            await send_to_fastapi(f"Robot start sequence failed: {e}", "error")
+
+
+# -----------------------------
+# MQTT COMMAND SUBSCRIBER
+# -----------------------------
+def create_mqtt_client(event_loop: asyncio.AbstractEventLoop) -> mqtt.Client:
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
+
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            loggers.cur_robot_logger.info(f"[MQTT] Connected to broker at {MQTT_HOST}:{MQTT_PORT}")
+            client.subscribe(MQTT_COMMAND_TOPIC)
+            loggers.cur_robot_logger.info(f"[MQTT] Subscribed to topic '{MQTT_COMMAND_TOPIC}'")
+        else:
+            loggers.cur_robot_logger.error(f"[MQTT] Failed to connect to broker, rc={rc}")
+
+    def on_message(client, userdata, message):
+        try:
+            payload = message.payload.decode("utf-8", errors="replace").strip()
+            topic = str(message.topic)
+
+            loggers.cur_robot_logger.info(f"[MQTT] Received command on '{topic}': {payload}")
+
+            if topic == MQTT_COMMAND_TOPIC:
+                asyncio.run_coroutine_threadsafe(run_robot_start_sequence(), event_loop)
+        except Exception as e:
+            loggers.cur_robot_logger.error(f"[MQTT] Error handling command message: {e}")
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    return client
+
+
+# -----------------------------
+# ROBOT DB WORKER
+# -----------------------------
 async def robot_worker(batch_size=50, flush_interval=2.0):
     db = await DatabaseSingleton.get_instance()
     batch = []
@@ -59,7 +169,10 @@ async def robot_worker(batch_size=50, flush_interval=2.0):
 
         await asyncio.sleep(0)
 
-# Handles TCP Connection
+
+# -----------------------------
+# TCP ROBOT INGESTION
+# -----------------------------
 async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     db = await DatabaseSingleton.get_instance()
     buf = b""
@@ -81,30 +194,16 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
                 try:
                     parts = [p.strip() for p in text.split(",")]
 
-                    ts_str = parts[0]
-
-                    try:
-                        dt = datetime.strptime(ts_str, "%m/%d/%Y %H:%M")
-                        local_dt = dt.replace(tzinfo=ZoneInfo("US/Eastern"))
-                        utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
-                        ts_epoch = int(utc_dt.timestamp())
-
-                    except Exception as e:
-                        ts_epoch = int(-1)
-
-
                     data = {
-                        "frame_id": int(parts[0]), # count
-                        "ts_epoch": float(parts[1]),
+                        "frame_id": int(parts[0]),
+                        "ts": float(parts[1]),
                         "ts_string": parts[2],
-
                         "joint1": float(parts[3]),
                         "joint2": float(parts[4]),
                         "joint3": float(parts[5]),
                         "joint4": float(parts[6]),
                         "joint5": float(parts[7]),
                         "joint6": float(parts[8]),
-                        
                         "x": float(parts[9]),
                         "y": float(parts[10]),
                         "z": float(parts[11]),
@@ -117,7 +216,7 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
                     await robot_queue.put(data)
                     loggers.cur_robot_logger.info(f"Queued message: {text}")
                 except Exception as e:
-                    print(f"ROBOT PARSE ERROR: {e} line={text!r}")  # 👈 new
+                    print(f"ROBOT PARSE ERROR: {e} line={text!r}")
                     loggers.cur_robot_logger.error(f"Parse error: {e}")
 
     except asyncio.CancelledError:
@@ -127,12 +226,21 @@ async def handle_robot(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
         await writer.wait_closed()
         loggers.cur_robot_logger.info("Writer Closed")
 
-# Starts the TCP server
+
+# -----------------------------
+# SERVER STARTUP
+# -----------------------------
 async def start_tcp_server(host: Optional[str] = None, port: int = 5001):
     host = host or os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("ROBOT_TCP_PORT", port))
     batch_size = int(os.getenv("BATCHES", 50))
-    batch_timeout = float(os.getenv("B_TIMEOUT", 1.0)) 
+    batch_timeout = float(os.getenv("B_TIMEOUT", 1.0))
+
+    loop = asyncio.get_running_loop()
+
+    mqtt_client = create_mqtt_client(loop)
+    mqtt_client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
+    mqtt_client.loop_start()
 
     server = await asyncio.start_server(handle_robot, host=host, port=port)
     sockets = ", ".join(str(s.getsockname()) for s in (server.sockets or []))
@@ -140,13 +248,18 @@ async def start_tcp_server(host: Optional[str] = None, port: int = 5001):
 
     asyncio.create_task(robot_worker(batch_size=batch_size, flush_interval=batch_timeout))
 
-    async with server:
-        await server.serve_forever()
+    try:
+        async with server:
+            await server.serve_forever()
+    finally:
+        loggers.cur_robot_logger.info("[MQTT] Stopping MQTT client")
+        mqtt_client.loop_stop()
+        mqtt_client.disconnect()
 
 
 def main():
     loggers.create_loggers()
-    loggers.cur_robot_logger.info("Starting TCP fast_server...")
+    loggers.cur_robot_logger.info("Starting TCP fast_server with MQTT command subscriber...")
 
     try:
         asyncio.run(start_tcp_server())
