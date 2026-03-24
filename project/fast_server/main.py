@@ -417,6 +417,25 @@ async def imu_worker(batch_size=50, flush_interval=2.0) -> None:
 
                 await asyncio.sleep(1)
 
+# --------------------------------------------- Command Channel  ---------------------------------------------
+
+# API endpoint to send robot start command over MQTT
+@app.post("/robot/start")
+async def start_robot_command() -> dict[str, Any]:
+    try:
+        loggers.cur_robot_logger.info("Received robot start request from dashboard")
+        mqtt.client.publish("cmd/robot/start", "start")
+        loggers.cur_robot_logger.info("Published MQTT command: cmd/robot/start -> start")
+
+        await broadcast_message(robot_manager, "Robot start command sent")
+        return {"success": True, "message": "Robot start command sent"}
+    except Exception as e:
+        loggers.cur_robot_logger.error(f"Failed to send robot start command: {e}")
+        await broadcast_message(robot_manager, f"Failed to send robot start command: {e}", "error")
+        return {"success": False, "error": str(e)}
+# --------------------------------------------- MQTT Operations ---------------------------------------------
+
+
 # MQTT Subscription for IMU device topics
 @mqtt.subscribe("imu/#")
 async def handle_sensors(client, topic, payload, qos, prop) -> None:

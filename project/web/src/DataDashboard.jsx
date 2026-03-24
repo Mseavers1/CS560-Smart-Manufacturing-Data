@@ -84,6 +84,28 @@ export default function DataDashboard() {
         }
     };
 
+    // This is to start the robot from the dashboard.
+    const startRobot = async () => {
+        sendMessage("robot", "info", "Sending start command to robot...");
+
+        try {
+            const res = await fetch("http://192.168.1.76:8000/robot/start", {
+                method: "POST"
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                sendMessage("robot", "info", "Robot start command sent.");
+            } else {
+                sendMessage("robot", "error", "Failed to start robot: " + data.error);
+            }
+
+        } catch (err) {
+            sendMessage("robot", "error", "Unexpected error starting robot: " + err);
+        }
+    };
+
     return (
         <div className="h-screen">
             
@@ -113,6 +135,13 @@ export default function DataDashboard() {
                     disabled={!activeSession || isStopping}
                     >
                     Stop Session
+                    </button>
+
+                    <button
+                    className="flex items-center gap-1 text-white bg-purple-500 hover:bg-purple-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100"
+                    onClick={() => startRobot()}
+                    >
+                    Start Robot
                     </button>
 
                     <StatusIndicator active={activeSession} onMsg="Session Active" offMsg="Session Inactive"/>
