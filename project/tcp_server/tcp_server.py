@@ -112,30 +112,92 @@ def create_mqtt_client(event_loop: asyncio.AbstractEventLoop) -> mqtt.Client:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
 
     def on_connect(client, userdata, flags, rc):
+        try:
+            if rc == 0:
+                msg = f"[TCP Server][MQTT] Connected to broker at {MQTT_HOST}:{MQTT_PORT}"
+                loggers.cur_robot_logger.info(msg)
+                asyncio.run_coroutine_threadsafe(
+                    send_to_fastapi(msg, "info", "misc"),
+                    event_loop
+                )
+
+                result, mid = client.subscribe(MQTT_COMMAND_TOPIC)
+                sub_msg = f"[TCP Server][MQTT] Subscribe requested for topic '{MQTT_COMMAND_TOPIC}' result={result} mid={mid}"
+                loggers.cur_robot_logger.info(sub_msg)
+                asyncio.run_coroutine_threadsafe(
+                    send_to_fastapi(sub_msg, "info", "misc"),
+                    event_loop
+                )
+            else:
+                msg = f"[TCP Server][MQTT] Failed to connect to broker, rc={rc}"
+                loggers.cur_robot_logger.error(msg)
+                asyncio.run_coroutine_threadsafe(
+                    send_to_fastapi(msg, "error", "misc"),
+                    event_loop
+                )
+        except Exception as e:
+            err = f"[TCP Server][MQTT] on_connect error: {e}"
+            loggers.cur_robot_logger.error(err)
+            asyncio.run_coroutine_threadsafe(
+                send_to_fastapi(err, "error", "misc"),
+                event_loop
+            )
+
+    def on_subscribe(client, userdata, mid, granted_qos):
+        msg = f"[TCP Server][MQTT] Subscription acknowledged mid={mid} qos={granted_qos}"
+        loggers.cur_robot_logger.info(msg)
+        asyncio.run_coroutine_threadsafe(
+            send_to_fastapi(msg, "info", "misc"),
+            event_loop
+        )
+
+    def on_disconnect(client, userdata, rc):
+        msg = f"[TCP Server][MQTT] Disconnected from broker rc={rc}"
         if rc == 0:
-            loggers.cur_robot_logger.info(f"[MQTT] Connected to broker at {MQTT_HOST}:{MQTT_PORT}")
-            client.subscribe(MQTT_COMMAND_TOPIC)
-            loggers.cur_robot_logger.info(f"[MQTT] Subscribed to topic '{MQTT_COMMAND_TOPIC}'")
+            loggers.cur_robot_logger.info(msg)
+            asyncio.run_coroutine_threadsafe(
+                send_to_fastapi(msg, "info", "misc"),
+                event_loop
+            )
         else:
-            loggers.cur_robot_logger.error(f"[MQTT] Failed to connect to broker, rc={rc}")
+            loggers.cur_robot_logger.error(msg)
+            asyncio.run_coroutine_threadsafe(
+                send_to_fastapi(msg, "error", "misc"),
+                event_loop
+            )
+
+    def on_log(client, userdata, level, buf):
+        loggers.cur_robot_logger.info(f"[TCP Server][MQTT-LOG] {buf}")
 
     def on_message(client, userdata, message):
         try:
             payload = message.payload.decode("utf-8", errors="replace").strip()
             topic = str(message.topic)
 
-            loggers.cur_robot_logger.info(f"[MQTT] Received command on '{topic}': {payload}")
+            msg = f"[TCP Server][MQTT] Received command on '{topic}': {payload}"
+            loggers.cur_robot_logger.info(msg)
+            asyncio.run_coroutine_threadsafe(
+                send_to_fastapi(msg, "info", "misc"),
+                event_loop
+            )
 
             if topic == MQTT_COMMAND_TOPIC:
                 asyncio.run_coroutine_threadsafe(run_robot_start_sequence(), event_loop)
         except Exception as e:
-            loggers.cur_robot_logger.error(f"[MQTT] Error handling command message: {e}")
+            err = f"[TCP Server][MQTT] Error handling command message: {e}"
+            loggers.cur_robot_logger.error(err)
+            asyncio.run_coroutine_threadsafe(
+                send_to_fastapi(err, "error", "misc"),
+                event_loop
+            )
 
     client.on_connect = on_connect
+    client.on_subscribe = on_subscribe
+    client.on_disconnect = on_disconnect
+    client.on_log = on_log
     client.on_message = on_message
 
     return client
-
 
 # -----------------------------
 # ROBOT DB WORKER
@@ -237,8 +299,13 @@ async def start_tcp_server(host: Optional[str] = None, port: int = 5001):
     loop = asyncio.get_running_loop()
 
     mqtt_client = create_mqtt_client(loop)
-    mqtt_client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
-    mqtt_client.loop_start()
+
+    try:
+        loggers.cur_robot_logger.info(f"[TCP Server][MQTT] Attempting connection to {MQTT_HOST}:{MQTT_PORT}")
+        mqtt_client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
+        mqtt_client.loop_start()
+    except Exception as e:
+        loggers.cur_robot_logger.error(f"[TCP Server][MQTT] Initial connect failed: {e}")
 
     server = await asyncio.start_server(handle_robot, host=host, port=port)
     sockets = ", ".join(str(s.getsockname()) for s in (server.sockets or []))
