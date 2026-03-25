@@ -86,7 +86,7 @@ export default function DataDashboard() {
 
     // This is to start the robot from the dashboard.
     const startRobot = async () => {
-        sendMessage("misc", "info", "Sending start command to robot...");
+        sendMessage("misc", "info", "[Dashboard] Sending start command to robot...");
 
         try {
             const res = await fetch("http://192.168.1.76:8000/robot/start", {
@@ -96,13 +96,13 @@ export default function DataDashboard() {
             const data = await res.json();
 
             if (data.success) {
-                sendMessage("misc", "info", "Robot start command sent.");
+                sendMessage("misc", "info", "[Dashboard] Robot start command sent.");
             } else {
-                sendMessage("misc", "error", "Failed to start robot: " + data.error);
+                sendMessage("misc", "error", "[Dashboard] Failed to start robot: " + data.error);
             }
 
         } catch (err) {
-            sendMessage("misc", "error", "Unexpected error starting robot: " + err);
+            sendMessage("misc", "error", "[Dashboard] Unexpected error starting robot: " + err);
         }
     };
 

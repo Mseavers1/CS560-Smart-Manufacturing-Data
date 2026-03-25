@@ -85,25 +85,25 @@ def run_plc_start_sequence_blocking() -> None:
 
 async def run_robot_start_sequence():
     if robot_start_lock.locked():
-        loggers.cur_robot_logger.warning("Robot start command received while robot start is already in progress")
-        await send_to_fastapi("Robot start already in progress", "error", "misc")
+        loggers.cur_robot_logger.warning("[TCP Server] Robot start command received while a start is already in progress")
+        await send_to_fastapi("[TCP Server] Robot start already in progress", "error", "misc")
         return
 
     async with robot_start_lock:
-        loggers.cur_robot_logger.info("Robot start command received by TCP server")
-        await send_to_fastapi("Robot start command received by TCP server", "info", "misc")
+        loggers.cur_robot_logger.info("[TCP Server] Robot start command received")
+        await send_to_fastapi("[TCP Server] Robot start command received", "info", "misc")
 
         try:
-            loggers.cur_robot_logger.info("Starting PLC handshake sequence")
-            await send_to_fastapi("Starting PLC handshake sequence", "info", "misc")
+            loggers.cur_robot_logger.info("[TCP Server] Starting PLC handshake sequence")
+            await send_to_fastapi("[TCP Server] Starting PLC handshake sequence", "info", "misc")
 
             await asyncio.to_thread(run_plc_start_sequence_blocking)
 
-            loggers.cur_robot_logger.info("Robot start sequence completed successfully")
-            await send_to_fastapi("Robot start sequence completed successfully", "info", "misc")
+            loggers.cur_robot_logger.info("[TCP Server] Robot start sequence completed successfully")
+            await send_to_fastapi("[TCP Server] Robot start sequence completed successfully", "info", "misc")
         except Exception as e:
-            loggers.cur_robot_logger.error(f"Robot start sequence failed: {e}")
-            await send_to_fastapi(f"Robot start sequence failed: {e}", "error", "misc")
+            loggers.cur_robot_logger.error(f"[TCP Server] Robot start sequence failed: {e}")
+            await send_to_fastapi(f"[TCP Server] Robot start sequence failed: {e}", "error", "misc")
 
 # -----------------------------
 # MQTT COMMAND SUBSCRIBER
