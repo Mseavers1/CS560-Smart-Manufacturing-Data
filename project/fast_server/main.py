@@ -422,15 +422,17 @@ async def imu_worker(batch_size=50, flush_interval=2.0) -> None:
 @app.post("/robot/start")
 async def start_robot_command() -> dict[str, Any]:
     try:
-        loggers.log_system_logger("Received robot start request")
-        mqtt.client.publish("cmd/robot/start", "start")
-        loggers.log_system_logger("Published MQTT command: cmd/robot/start -> start")
+        loggers.log_system_logger("Robot start API request received")
+        await broadcast_message(misc_manager, "Robot start API request received", "info")
 
-        await broadcast_message(robot_manager, "Robot start command sent")
+        mqtt.client.publish("cmd/robot/start", "start")
+        loggers.log_system_logger("Robot start MQTT command published: cmd/robot/start -> start")
+        await broadcast_message(misc_manager, "Robot start MQTT command published", "info")
+
         return {"success": True, "message": "Robot start command sent"}
     except Exception as e:
         loggers.log_system_logger(f"Failed to send robot start command: {e}", True)
-        await broadcast_message(robot_manager, f"Failed to send robot start command: {e}", "error")
+        await broadcast_message(misc_manager, f"Failed to send robot start command: {e}", "error")
         return {"success": False, "error": str(e)}
     
 # --------------------------------------------- MQTT Operations ---------------------------------------------

@@ -33,11 +33,11 @@ robot_start_lock = asyncio.Lock()
 # -----------------------------
 # FASTAPI MESSAGE HELPER
 # -----------------------------
-async def send_to_fastapi(msg: str, msg_type: str = "normal"):
+async def send_to_fastapi(msg: str, msg_type: str = "normal", channel: str = "robot"):
     host = os.getenv("FASTAPI_HOST", os.getenv("HOST_IP", "localhost"))
     port = os.getenv("FASTAPI_PORT", "8000")
 
-    url = f"http://{host}:{port}/send/robot"
+    url = f"http://{host}:{port}/send/{channel}"
 
     payload = {
         "type": msg_type,
@@ -52,7 +52,6 @@ async def send_to_fastapi(msg: str, msg_type: str = "normal"):
                     print(f"FastAPI broadcast failed ({resp.status}): {text}")
     except Exception as e:
         print(f"Could not reach FastAPI API: {e}")
-
 
 # -----------------------------
 # PLC CONTROL
@@ -87,25 +86,24 @@ def run_plc_start_sequence_blocking() -> None:
 async def run_robot_start_sequence():
     if robot_start_lock.locked():
         loggers.cur_robot_logger.warning("Robot start command received while robot start is already in progress")
-        await send_to_fastapi("Robot start already in progress", "error")
+        await send_to_fastapi("Robot start already in progress", "error", "misc")
         return
 
     async with robot_start_lock:
-        loggers.cur_robot_logger.info("Robot start command received")
-        await send_to_fastapi("Robot start command received")
+        loggers.cur_robot_logger.info("Robot start command received by TCP server")
+        await send_to_fastapi("Robot start command received by TCP server", "info", "misc")
 
         try:
             loggers.cur_robot_logger.info("Starting PLC handshake sequence")
-            await send_to_fastapi("Starting PLC handshake sequence")
+            await send_to_fastapi("Starting PLC handshake sequence", "info", "misc")
 
             await asyncio.to_thread(run_plc_start_sequence_blocking)
 
             loggers.cur_robot_logger.info("Robot start sequence completed successfully")
-            await send_to_fastapi("Robot cycle complete")
+            await send_to_fastapi("Robot start sequence completed successfully", "info", "misc")
         except Exception as e:
             loggers.cur_robot_logger.error(f"Robot start sequence failed: {e}")
-            await send_to_fastapi(f"Robot start sequence failed: {e}", "error")
-
+            await send_to_fastapi(f"Robot start sequence failed: {e}", "error", "misc")
 
 # -----------------------------
 # MQTT COMMAND SUBSCRIBER
