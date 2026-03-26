@@ -534,7 +534,7 @@ class DatabaseSingleton:
                     d["rvec_x"], d["rvec_y"], d["rvec_z"],
                     d["tvec_x"], d["tvec_y"], d["tvec_z"],
                     d["image_path"],
-                    d["device_id"],
+                    d["device_label"],
                     session_id,
                     self.get_time(),   # ingested_at
                 )
