@@ -479,39 +479,6 @@ class DatabaseSingleton:
                     device_id, session_id, accel_x, accel_y, accel_z, gryo_x, gryo_y, gryo_z, mag_x, mag_y, mag_z, yaw, pitch, roll, recorded_at, self.get_time()
                 )
 
-    # # Batched insertion for CAMERA
-    # async def insert_camera_batch(self, batch):
-
-    #     session_id = await self.get_latest_session()
-
-    #     if not session_id:
-    #         raise SessionNotStarted("No current active session. Run a GET to start a new session.")
-
-    #     async with self.pool.acquire() as conn:
-
-    #         async with conn.transaction():
-
-    #             await conn.executemany("""
-    #                 INSERT INTO image_detection (
-    #                     frame_idx, marker_idx, rvec_x, rvec_y, rvec_z,
-    #                     tvec_x, tvec_y, tvec_z, image_path,
-    #                     recorded_at, device_id, session_id, ingested_at
-    #                 )
-    #                 VALUES (
-    #                     $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
-    #                 )
-    #             """, [
-    #                 (
-    #                     d["frame_idx"], d["marker_idx"],
-    #                     d["rvec_x"], d["rvec_y"], d["rvec_z"],
-    #                     d["tvec_x"], d["tvec_y"], d["tvec_z"],
-    #                     d["image_path"], d["recorded_at"],
-    #                     await self.get_or_create_device_id(d["device_label"], "camera"),
-    #                     session_id, self.get_time()
-    #                 )
-    #                 for d in batch
-    #             ])
-
     # Batched insertion for CAMERA
     async def insert_camera_batch(self, batch):
         session_id = await self.get_latest_session()
@@ -521,7 +488,7 @@ class DatabaseSingleton:
         records = []
         for i, d in enumerate(batch):
             try:
-                # device_id = await self.get_or_create_device_id(d["device_label"], "camera")
+                device_id = await self.get_or_create_device_id(d["device_label"], "camera")
 
                 # 🔍 DEBUG: print the parsed dict
                 print(f"[CAMERA DEBUG] batch_idx={i} parsed_d={d}")
@@ -534,7 +501,7 @@ class DatabaseSingleton:
                     d["rvec_x"], d["rvec_y"], d["rvec_z"],
                     d["tvec_x"], d["tvec_y"], d["tvec_z"],
                     d["image_path"],
-                    d["device_label"],
+                    device_id,
                     session_id,
                     self.get_time(),   # ingested_at
                 )
