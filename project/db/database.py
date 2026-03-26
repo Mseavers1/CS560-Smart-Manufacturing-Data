@@ -521,7 +521,7 @@ class DatabaseSingleton:
         records = []
         for i, d in enumerate(batch):
             try:
-                device_id = await self.get_or_create_device_id(d["device_label"], "camera")
+                # device_id = await self.get_or_create_device_id(d["device_label"], "camera")
 
                 # 🔍 DEBUG: print the parsed dict
                 print(f"[CAMERA DEBUG] batch_idx={i} parsed_d={d}")
@@ -534,7 +534,7 @@ class DatabaseSingleton:
                     d["rvec_x"], d["rvec_y"], d["rvec_z"],
                     d["tvec_x"], d["tvec_y"], d["tvec_z"],
                     d["image_path"],
-                    device_id,
+                    d["device_id"],
                     session_id,
                     self.get_time(),   # ingested_at
                 )

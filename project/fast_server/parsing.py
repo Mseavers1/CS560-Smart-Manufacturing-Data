@@ -20,7 +20,7 @@ def parse_camera_message(topic, payload) -> dict[str, Any]:
         raise ValueError(f"Expected at least 10 fields, got {len(msg)}")
 
     return {
-            "device_label": device_label,
+            "device_label": int(msg[-1]), #device label should be last field in camera message
 
             "frame_idx": int(msg[0]),
             "capture_time": float(msg[1]),

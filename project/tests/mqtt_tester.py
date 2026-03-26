@@ -51,24 +51,27 @@ def create_imu_csv(num_records: int = 1) -> list[str]:
 
 def create_camera_csv(num_records: int = 1) -> list[str]:
     """
-    Generates mock Camera CSV rows.
+    Generates deterministic mock Camera CSV rows for testing.
     Returns list[str].
     """
-    now = pd.Timestamp.now()
-    recorded_at = np.arange(num_records) * 33 + int(now.timestamp() * 1000)
+
+    # Unix epoch start
+    recorded_at = np.zeros(num_records, dtype=int)
 
     df = pd.DataFrame({
         "recorded_at": recorded_at,
-        "frame_idx": np.arange(num_records),
+        "frame_idx": np.arange(1, num_records + 1),  # start at 1
         "capture_time": recorded_at,
-        "marker_idx": np.random.randint(0, 10, num_records),
-        "rvecx": np.random.uniform(-3.14, 3.14, num_records),
-        "rvecy": np.random.uniform(-3.14, 3.14, num_records),
-        "rvecz": np.random.uniform(-3.14, 3.14, num_records),
-        "tvecx": np.random.uniform(-100, 100, num_records),
-        "tvecy": np.random.uniform(-100, 100, num_records),
-        "tvecz": np.random.uniform(0, 500, num_records)
+        "marker_idx": np.zeros(num_records, dtype=int),
+        "rvecx": np.full(num_records, 9999),
+        "rvecy": np.full(num_records, 9999),
+        "rvecz": np.full(num_records, 9999),
+        "tvecx": np.full(num_records, 9999),
+        "tvecy": np.full(num_records, 9999),
+        "tvecz": np.full(num_records, 9999),
+        "device_id": np.full(num_records, 999)  # new column
     })
+
     return df.to_csv(index=False, header=False).strip().splitlines()
 
 
@@ -237,5 +240,5 @@ def test_camera_client(samples, interval, id, stop_event=None):
 # -----------------------------
 if __name__ == "__main__":
     logger.info(colorize("Camera Client", "Manual mode: sending 10 Camera samples"))
-    result = test_camera_client(10, 0.1, id="manual_test")
+    result = test_camera_client(10, 0.1, id="dummy_camera_test")
     print(f"\nTest result: {result}")
