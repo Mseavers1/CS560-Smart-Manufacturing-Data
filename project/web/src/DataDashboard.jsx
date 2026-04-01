@@ -121,8 +121,14 @@ return (
             <div className="flex gap-4">
 
                 <div className="bg-gray-700 px-3 py-1 rounded text-sm text-white">
-                    Current Session: {latestSession || "None"}
+                    Most Recent Session: {latestSession || "None"}
                 </div>
+
+                <button
+                    className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    Clear Cache [PLHDR]
+                </button>
 
                 <button
                     className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
