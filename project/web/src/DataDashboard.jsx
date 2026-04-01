@@ -6,6 +6,7 @@ import BackupCard from "./components/BackupCard";
 export default function DataDashboard() {
 
     const [activeSession, setActiveSession] = useState(false);
+    const [latestSession, setLatestSession] = useState("");
     const [isStopping, setIsStopping] = useState(false);
 
     useEffect(() => {
@@ -21,6 +22,32 @@ export default function DataDashboard() {
         };
 
         getStatus();
+    }, []);
+
+
+    useEffect(() => {
+
+        const getLatestSession = async () => {
+            try {
+                const r = await fetch("http://192.168.1.76:8000/sessions");
+                const json = await r.json();
+
+                const sessions = json.data;
+
+                if (sessions && sessions.length > 0) {
+                    // Sort by id descending to get the most recent
+                    sessions.sort((a, b) => b.id - a.id);
+                    const newest = sessions[0];
+                    setLatestSession(newest.id);
+                }
+
+            } catch (e) {
+                sendMessage("camera", "error", "Session fetch error: " + e);
+            }
+        };
+
+        getLatestSession();
+
     }, []);
 
     const sendMessage = async (dest, type, msg) => {
@@ -84,64 +111,67 @@ export default function DataDashboard() {
         }
     };
 
-    return (
-        <div className="h-screen">
-            
-            {/* 2nd Top Bar -- Turn on and off a session */}
-            <div className="fixed top-14 left-0 w-full flex justify-between items-center px-6 py-1 bg-gray-500 text-white shadow z-30">
-                <h2 className="text-base font-medium">Data Dashboard</h2>
+return (
+    <div className="h-screen">
+        
+        {/* 2nd Top Bar -- Turn on and off a session */}
+        <div className="fixed top-14 left-0 w-full flex justify-between items-center px-6 py-1 bg-gray-500 text-white shadow z-30">
+            <h2 className="text-base font-medium">Data Dashboard</h2>
 
-                <div className="flex gap-4">
+            <div className="flex gap-4">
 
-                    <button className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                     onClick={() => window.open("http://192.168.1.111:8080", "_blank")}>
-                        Open Database GUI
-                    </button>
+                <div className="bg-gray-700 px-3 py-1 rounded text-sm text-white">
+                    Most Recent Session: {latestSession || "None"}
+                </div>
 
+                <button
+                    className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                    Clear Cache [PLHDR]
+                </button>
 
-                    <button
+                <button
+                    className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    onClick={() => window.open("http://192.168.1.111:8080", "_blank")}
+                >
+                    Open Database GUI
+                </button>
+
+                <button
                     className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     disabled={activeSession}
                     onClick={() => startSession()}
-                    >
+                >
                     Start Session
-                    </button>
+                </button>
 
-                    <button
+                <button
                     className="flex items-center gap-1 text-white bg-red-500 hover:bg-red-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     onClick={() => stopSession()}
                     disabled={!activeSession || isStopping}
-                    >
+                >
                     Stop Session
-                    </button>
+                </button>
 
-                    <StatusIndicator active={activeSession} onMsg="Session Active" offMsg="Session Inactive"/>
-                </div>
+                <StatusIndicator active={activeSession} onMsg="Session Active" offMsg="Session Inactive" />
             </div>
-
-            <div className='flex flex-col items-center pt-16 gap-5 justify-center'>
-
-                <div className='flex flex-row items-center gap-5'>
-                    
-                    <MessageWB type="camera"/>
-                    <MessageWB type="imu"/>
-                    <MessageWB type="robot"/>  
-
-                </div>
-
-                <div className='flex flex-row items-center gap-5'>
-                    
-                    <MessageWB type="misc" />
-                    <BackupCard sendMessage={sendMessage}/> 
-
-                </div>
-
-
-            </div>
-
-
         </div>
-    )
+
+        <div className="flex flex-col items-center pt-16 gap-5 justify-center">
+
+            <div className="flex flex-row items-center gap-5">
+                <MessageWB type="camera" />
+                <MessageWB type="imu" />
+                <MessageWB type="robot" />
+            </div>
+
+            <div className="flex flex-row items-center gap-5">
+                <MessageWB type="misc" />
+                <BackupCard sendMessage={sendMessage} />
+            </div>
+        </div>
+    </div>
+)
 
 
 }
