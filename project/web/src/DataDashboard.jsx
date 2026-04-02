@@ -124,6 +124,13 @@ return (
                     Most Recent Session: {latestSession || "None"}
                 </div>
 
+                {/* placeholder seperation */}
+                <button
+                    className="flex items-center gap-1"
+                >
+                    ||
+                </button>
+
                 <button
                     className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
@@ -131,10 +138,24 @@ return (
                 </button>
 
                 <button
-                    className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 text-white bg-yellow-500 hover:bg-yellow-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    onClick={() => window.open("http://192.168.1.115/view/index.shtml", "_blank")}
+                >
+                    Open Robot Camera
+                </button>
+
+                <button
+                    className="flex items-center gap-1 text-white bg-indigo-500 hover:bg-indigo-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     onClick={() => window.open("http://192.168.1.111:8080", "_blank")}
                 >
                     Open Database GUI
+                </button>
+                
+                {/* placeholder seperation */}
+                <button
+                    className="flex items-center gap-1"
+                >
+                    ||
                 </button>
 
                 <button

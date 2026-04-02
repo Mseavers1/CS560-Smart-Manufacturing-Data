@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  imu_joint1_test:
+    image: alpine:latest
+    command: ["sh", "-c", "while true; do echo hello from IMU_JOINT1; sleep 30; done"]
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.device_id == (IP)
