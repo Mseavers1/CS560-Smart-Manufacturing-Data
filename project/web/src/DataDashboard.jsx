@@ -18,6 +18,26 @@ function getErrorMessage(error) {
     return error instanceof Error ? error.message : String(error);
 }
 
+function getSessionDisplayValue(session) {
+    if (!session || typeof session !== "object") {
+        return "";
+    }
+
+    if (session.id !== undefined && session.id !== null) {
+        return String(session.id);
+    }
+
+    if (session.label) {
+        return String(session.label);
+    }
+
+    if (session.lable) {
+        return String(session.lable);
+    }
+
+    return "";
+}
+
 export default function DataDashboard() {
     const [activeSession, setActiveSession] = useState(false);
     const [latestSession, setLatestSession] = useState("");
@@ -63,9 +83,9 @@ export default function DataDashboard() {
                 const sessions = Array.isArray(json.data) ? [...json.data] : [];
 
                 if (sessions.length > 0) {
-                    sessions.sort((a, b) => b.id - a.id);
+                    sessions.sort((a, b) => Number(b?.id ?? 0) - Number(a?.id ?? 0));
                     const newest = sessions[0];
-                    setLatestSession(String(newest.label));
+                    setLatestSession(getSessionDisplayValue(newest));
                 } else {
                     setLatestSession("");
                 }
