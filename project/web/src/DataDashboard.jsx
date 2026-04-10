@@ -112,7 +112,7 @@ export default function DataDashboard() {
 
             if (data.success) {
                 setActiveSession(true);
-                setLatestSession(label);
+                // needs to change to TODO setLatestSession(label);
                 await sendMessage("misc", "info", "Session ready");
             } else {
                 const message = "Failed to start session: " + data.error;
