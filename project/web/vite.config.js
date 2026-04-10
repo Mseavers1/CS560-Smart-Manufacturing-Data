@@ -43,8 +43,12 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_WS_URL": JSON.stringify(wsUrl),
       "import.meta.env.VITE_AI_URL": JSON.stringify(aiUrl),
       "import.meta.env.VITE_TWINS_URL": JSON.stringify(twinsUrl),
-      "import.meta.env.VITE_ROBOT_CAMERA_URL": JSON.stringify(env.VITE_ROBOT_CAMERA_URL || ""),
-      "import.meta.env.VITE_DB_GUI_URL": JSON.stringify(env.VITE_DB_GUI_URL || ""),
+      "import.meta.env.VITE_ROBOT_CAMERA_URL": JSON.stringify(
+        env.VITE_ROBOT_CAMERA_URL || env.ROBOT_CAMERA_URL || "",
+      ),
+      "import.meta.env.VITE_DB_GUI_URL": JSON.stringify(
+        env.VITE_DB_GUI_URL || env.DB_GUI_URL || "",
+      ),
     },
   };
 });
