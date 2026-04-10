@@ -65,7 +65,7 @@ export default function DataDashboard() {
                 if (sessions.length > 0) {
                     sessions.sort((a, b) => b.id - a.id);
                     const newest = sessions[0];
-                    setLatestSession(String(newest.id));
+                    setLatestSession(String(newest.label));
                 } else {
                     setLatestSession("");
                 }

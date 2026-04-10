@@ -70,7 +70,7 @@ export default function MessageWB({ type }) {
     }, [lines]);
 
     return (
-        <div className="flex h-full min-h-0 w-full flex-col">
+        <div className="flex h-full min-h-0 max-h-[32rem] w-full flex-col overflow-hidden">
             <div className="mb-3 flex items-start justify-between gap-3 border-b border-gray-200 pb-3">
                 <div>
                     <h3 className="text-base font-semibold text-gray-900">
