@@ -1,0 +1,5 @@
+dataset,source,retention_period,owner,notes
+session_records,backend database,365 days,operations,keep for trend analysis
+camera_snapshots,robot camera service,90 days,vision team,archive critical incidents
+dashboard_messages,message broker,30 days,controls team,used for short-term triage
+backup_archives,backup service,180 days,operations,verify checksum after export
