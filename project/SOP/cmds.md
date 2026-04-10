@@ -10,3 +10,7 @@ ssh data-team@192.168.1.76
 
 docker exec -it fastapi-fast_server bash
 cd /fast_server/logs
+
+# Swarm
+
+sudo docker stack deploy --resolve-image never -c swarm.yml sensors
