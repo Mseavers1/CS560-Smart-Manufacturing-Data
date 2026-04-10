@@ -1,106 +1,104 @@
-    import { useEffect, useRef, useState } from "react";
-    import StatusIndicator from "./StatusIndicator";
-    
-    export default function MessageWB({type}) {
-        const [lines, setLines] = useState([]);
-        const [connected, setConnected] = useState(false);
-        const [refreshTemp, setRefreshTemp] = useState(false)
+import { useEffect, useRef, useState } from "react";
+import StatusIndicator from "./StatusIndicator";
+import { resolveWsUrl } from "../api/apiClient";
 
-        const boxRef = useRef(null);
+function formatTimestamp(value) {
+    if (!value) return "--";
+    return value;
+}
 
-        const capitalizeType = type.charAt(0).toUpperCase() + type.slice(1);
+export default function MessageWB({ type }) {
+    const [lines, setLines] = useState([]);
+    const [connected, setConnected] = useState(false);
+    const [refreshTemp, setRefreshTemp] = useState(false);
 
-        useEffect(() => {
-            const ws = new WebSocket("ws://192.168.1.76:8000/ws/" + type);
+    const boxRef = useRef(null);
+    const capitalizeType = type.charAt(0).toUpperCase() + type.slice(1);
 
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data); 
+    useEffect(() => {
+        const ws = new WebSocket(resolveWsUrl(`/ws/${type}`));
 
-                    if (data && data.type && data.text) {
-                        setLines((prev) => {
-                            const next = [...prev, data];
-                            return next.length > 500 ? next.slice(-500) : next;
-                        });
-                    } else {
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
 
-                        setLines((prev) => {
-                            const next = [...prev, { text: event.data, type: "normal" }];
-                            return next.length > 500 ? next.slice(-500) : next;
-                        });
-                    }
-                } catch (err) {
-
+                if (data && data.type && data.text) {
                     setLines((prev) => {
-                        const next = [...prev, { text: event.data, type: "normal" }];
+                        const next = [...prev, data];
+                        return next.length > 500 ? next.slice(-500) : next;
+                    });
+                } else {
+                    setLines((prev) => {
+                        const next = [
+                            ...prev,
+                            { text: event.data, type: "normal", timestamp: "--" },
+                        ];
                         return next.length > 500 ? next.slice(-500) : next;
                     });
                 }
-            };
-
-
-            ws.onopen = () => {
-                setConnected(true);
-            }
-
-            ws.onclose = () => {
-                setConnected(false);
-            }
-
-            ws.onerror = () => {
-                setConnected(false);
-            }
-
-            return () => ws.close();
-        }, [refreshTemp]);
-
-        useEffect(() => {
-            boxRef.current?.scrollTo({
-                top: boxRef.current.scrollHeight,
-                behavior: "auto",
-            });
-        }, [lines]);
-
-        async function getLatest() {
-            try {
-                const res = await fetch("http://192.168.1.76:8000/" + type + "/latest");
-                const json = await res.json();
-
-                if (json.success) {
-                    
-                    setLines((prev) => {
-
-                    const normalized = json.data.map(item => ({
-                        text: item.text ?? JSON.stringify(item),
-                        type: item.type ?? "normal",
-                        timestamp: item.timestamp ?? "???"
-                    }));
-
-                    const next = [...prev, ...normalized];
+            } catch {
+                setLines((prev) => {
+                    const next = [
+                        ...prev,
+                        { text: event.data, type: "normal", timestamp: "--" },
+                    ];
                     return next.length > 500 ? next.slice(-500) : next;
                 });
-
-
-                } else {
-                    
-                }
-
-            } catch (err) {
-                
             }
-        }
+        };
 
-        return (
-            <div className="bg-white rounded-lg shadow p-5 w-[550px] gap-2">
-                <h3 className="text-lg font-semibold mb-2"> {capitalizeType} Messages</h3>
-                <div
-                    ref={boxRef}
-                    className="bg-gray-900 font-mono text-sm rounded-md p-3 h-64 overflow-y-auto overflow-x-auto whitespace-pre text-left w-full"
-                >
-                    {lines.map((line, i) => (
+        ws.onopen = () => {
+            setConnected(true);
+        };
+
+        ws.onclose = () => {
+            setConnected(false);
+        };
+
+        ws.onerror = () => {
+            setConnected(false);
+        };
+
+        return () => ws.close();
+    }, [type, refreshTemp]);
+
+    useEffect(() => {
+        boxRef.current?.scrollTo({
+            top: boxRef.current.scrollHeight,
+            behavior: "auto",
+        });
+    }, [lines]);
+
+    return (
+        <div className="flex h-full min-h-0 max-h-[32rem] w-full flex-col overflow-hidden">
+            <div className="mb-3 flex items-start justify-between gap-3 border-b border-gray-200 pb-3">
+                <div>
+                    <h3 className="text-base font-semibold text-gray-900">
+                        {capitalizeType} Messages
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                        Live message feed and recent history
+                    </p>
+                </div>
+
+                <StatusIndicator
+                    active={connected}
+                    onMsg="Listening"
+                    offMsg="Disconnected"
+                />
+            </div>
+
+            <div
+                ref={boxRef}
+                className="min-h-0 flex-1 overflow-y-auto overflow-x-auto rounded-md bg-gray-900 p-3 font-mono text-sm text-left whitespace-pre"
+            >
+                {lines.length === 0 ? (
+                    <p className="text-gray-400">No messages yet.</p>
+                ) : (
+                    lines.map((line, i) => (
                         <p
                             key={i}
-                            className={`whitespace-pre w-full ${
+                            className={`w-full whitespace-pre-wrap break-words ${
                                 line.type === "error"
                                     ? "text-red-400"
                                     : line.type === "info"
@@ -108,35 +106,44 @@
                                     : "text-green-400"
                             }`}
                         >
-                            [{line.timestamp}] {line.text}
+                            [{formatTimestamp(line.timestamp)}] {line.text}
                         </p>
-                    ))}
+                    ))
+                )}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-xs text-gray-500">
+                    Showing up to 500 messages
                 </div>
 
-                <div className="flex flex-row justify-between items-center mt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+                        onClick={() => setRefreshTemp((prev) => !prev)}
+                    >
+                        Refresh
+                    </button>
 
-                    <StatusIndicator active={connected} onMsg="Listening" offMsg="Disconnected" />
+                    <button
+                        type="button"
+                        className="rounded-md bg-slate-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-400"
+                        disabled
+                        title="No historical message endpoint is available for this channel yet."
+                    >
+                        Recent Unavailable
+                    </button>
 
-
-                    <div className="flex flex-row items-center gap-3">
-
-                        <button
-                            className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            onClick={() => {setRefreshTemp(!refreshTemp)}}
-                            >
-                            Refresh
-                        </button>
-
-                        <button
-                            className="flex items-center gap-1 text-white bg-red-500 hover:bg-red-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            onClick={() => {setLines([])}}
-                            >
-                            Clear
-                        </button>
-
-                    </div>
-
+                    <button
+                        type="button"
+                        className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-red-700"
+                        onClick={() => setLines([])}
+                    >
+                        Clear
+                    </button>
                 </div>
             </div>
-        );
-    }
+        </div>
+    );
+}

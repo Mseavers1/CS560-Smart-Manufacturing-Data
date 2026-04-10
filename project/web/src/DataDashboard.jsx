@@ -1,147 +1,267 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import MessageWB from "./components/MessageWB";
 import StatusIndicator from "./components/StatusIndicator";
 import BackupCard from "./components/BackupCard";
+import DashboardPanel from "./components/DashboardPanel";
+import {
+    getSessionStatus,
+    getSessions,
+    startSessionByLabel,
+    stopSessionRequest,
+} from "./api/sessionApi";
+import { sendDashboardMessage } from "./api/messageApi";
+
+const ROBOT_CAMERA_URL = import.meta.env.VITE_ROBOT_CAMERA_URL;
+const DB_GUI_URL = import.meta.env.VITE_DB_GUI_URL;
+
+function getErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function getSessionDisplayValue(session) {
+    if (!session || typeof session !== "object") {
+        return "";
+    }
+
+    if (session.id !== undefined && session.id !== null) {
+        return String(session.id);
+    }
+
+    if (session.label) {
+        return String(session.label);
+    }
+
+    if (session.lable) {
+        return String(session.lable);
+    }
+
+    return "";
+}
 
 export default function DataDashboard() {
-
     const [activeSession, setActiveSession] = useState(false);
+    const [latestSession, setLatestSession] = useState("");
     const [isStopping, setIsStopping] = useState(false);
+    const [isStatusLoading, setIsStatusLoading] = useState(true);
+    const [isLatestSessionLoading, setIsLatestSessionLoading] = useState(true);
+    const [dashboardError, setDashboardError] = useState("");
+
+    const sendMessage = async (dest, type, msg) => {
+        try {
+            await sendDashboardMessage(dest, type, msg);
+        } catch (err) {
+            console.error("sendMessage failed:", err);
+        }
+    };
 
     useEffect(() => {
-
         const getStatus = async () => {
+            setIsStatusLoading(true);
+
             try {
-            const r = await fetch("http://192.168.1.76:8000/session");
-            const json = await r.json();
-            setActiveSession(json.data);
+                const json = await getSessionStatus();
+                setActiveSession(Boolean(json.data));
+                setDashboardError("");
             } catch (e) {
-            sendMessage("camera", "error", "An unexpected error has occurred: " + e);
+                const message = `Unable to load session status: ${getErrorMessage(e)}`;
+                setDashboardError(message);
+                await sendMessage("camera", "error", message);
+            } finally {
+                setIsStatusLoading(false);
             }
         };
 
         getStatus();
     }, []);
 
-    const sendMessage = async (dest, type, msg) => {
-        
-        try {
-            await fetch("http://192.168.1.76:8000/send/" + dest, {
-            method: "POST",
-            headers: {"Content-Type":"application/json"},
-            body: JSON.stringify({ type: type, text: msg })
-            });
+    useEffect(() => {
+        const getLatestSession = async () => {
+            setIsLatestSessionLoading(true);
 
-        } catch (err) {
-            alert(err)
-        }
+            try {
+                const json = await getSessions();
+                const sessions = Array.isArray(json.data) ? [...json.data] : [];
 
-    }
+                if (sessions.length > 0) {
+                    sessions.sort((a, b) => Number(b?.id ?? 0) - Number(a?.id ?? 0));
+                    const newest = sessions[0];
+                    setLatestSession(getSessionDisplayValue(newest));
+                } else {
+                    setLatestSession("");
+                }
+            } catch (e) {
+                const message = `Unable to load latest session: ${getErrorMessage(e)}`;
+                setDashboardError((current) => current || message);
+                await sendMessage("camera", "error", message);
+            } finally {
+                setIsLatestSessionLoading(false);
+            }
+        };
+
+        getLatestSession();
+    }, []);
 
     const startSession = async () => {
-
-        sendMessage("misc", "info", "Starting new session...")
+        setDashboardError("");
+        await sendMessage("misc", "info", "Starting new session...");
 
         try {
             const now = new Date();
             const label = "ses_" + now.toISOString();
-            const encodedLabel = encodeURIComponent(label);
-            const res = await fetch(`http://192.168.1.76:8000/session/start/${encodedLabel}`);
-            const data = await res.json();
+            const data = await startSessionByLabel(label);
 
             if (data.success) {
                 setActiveSession(true);
-                sendMessage("misc", "info", "Session ready");
+                // needs to change to TODO setLatestSession(label);
+                await sendMessage("misc", "info", "Session ready");
             } else {
-                sendMessage("misc", "error", "Failed to start session: " + data.error);
+                const message = "Failed to start session: " + data.error;
+                setDashboardError(message);
+                await sendMessage("misc", "error", message);
             }
         } catch (err) {
-            sendMessage("misc", "error", "An unexpected error has occured: " + err);
+            const message = "An unexpected error has occurred: " + getErrorMessage(err);
+            setDashboardError(message);
+            await sendMessage("misc", "error", message);
         }
     };
 
     const stopSession = async () => {
-
-        sendMessage("misc", "info", "Stopping the current session...");
+        setDashboardError("");
+        await sendMessage("misc", "info", "Stopping the current session...");
         setIsStopping(true);
 
         try {
-            const res = await fetch(`http://192.168.1.76:8000/session/stop/`);
-            const data = await res.json();
+            const data = await stopSessionRequest();
 
             if (data.success) {
-                sendMessage("misc", "info", "Session Stopped");
+                await sendMessage("misc", "info", "Session stopped");
                 setActiveSession(false);
             } else {
-                sendMessage("misc", "error", "Failed to stop the session: " + data.error);
+                const message = "Failed to stop the session: " + data.error;
+                setDashboardError(message);
+                await sendMessage("misc", "error", message);
             }
-
         } catch (err) {
-            sendMessage("misc", "error", "An unexpected error has occured: " + err)
-            
+            const message = "An unexpected error has occurred: " + getErrorMessage(err);
+            setDashboardError(message);
+            await sendMessage("misc", "error", message);
         } finally {
-            setIsStopping(false)
+            setIsStopping(false);
         }
     };
 
+    const isActionDisabled = isStatusLoading || isLatestSessionLoading;
+
     return (
-        <div className="h-screen">
-            
-            {/* 2nd Top Bar -- Turn on and off a session */}
-            <div className="fixed top-14 left-0 w-full flex justify-between items-center px-6 py-1 bg-gray-500 text-white shadow z-30">
-                <h2 className="text-base font-medium">Data Dashboard</h2>
+        <div className="min-h-screen bg-gray-100 text-gray-900">
+            <div className="mx-auto w-full max-w-7xl px-4 pb-8 pt-20 sm:px-6 lg:px-8">
+                <div className="sticky top-14 z-30 mb-6 rounded-xl border border-gray-200 bg-white/95 shadow-sm backdrop-blur">
+                    <div className="flex flex-col gap-4 p-4 lg:p-5">
+                        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="flex flex-col gap-2">
+                                <h1 className="text-xl font-semibold tracking-tight">
+                                    Data Dashboard
+                                </h1>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <StatusIndicator
+                                        active={activeSession}
+                                        onMsg="Session Active"
+                                        offMsg={
+                                            isStatusLoading
+                                                ? "Checking Session..."
+                                                : "Session Inactive"
+                                        }
+                                    />
+                                    <div className="rounded-md bg-gray-100 px-3 py-1 text-sm text-gray-700">
+                                        Most Recent Session:{" "}
+                                        {isLatestSessionLoading
+                                            ? "Loading..."
+                                            : latestSession || "None"}
+                                    </div>
+                                </div>
+                            </div>
 
-                <div className="flex gap-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                                    disabled={activeSession || isActionDisabled}
+                                    onClick={startSession}
+                                >
+                                    {isStatusLoading ? "Loading..." : "Start Session"}
+                                </button>
 
-                    <button className="flex items-center gap-1 text-white bg-blue-500 hover:bg-blue-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                     onClick={() => window.open("http://192.168.1.111:8080", "_blank")}>
-                        Open Database GUI
-                    </button>
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                                    onClick={stopSession}
+                                    disabled={!activeSession || isStopping || isActionDisabled}
+                                >
+                                    {isStopping ? "Stopping..." : "Stop Session"}
+                                </button>
+                            </div>
+                        </div>
 
+                        <div className="border-t border-gray-200 pt-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                                >
+                                    Clear Cache [PLHDR]
+                                </button>
 
-                    <button
-                    className="flex items-center gap-1 text-white bg-green-500 hover:bg-green-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={activeSession}
-                    onClick={() => startSession()}
-                    >
-                    Start Session
-                    </button>
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-yellow-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-400"
+                                    onClick={() => window.open(ROBOT_CAMERA_URL, "_blank")}
+                                    disabled={!ROBOT_CAMERA_URL}
+                                >
+                                    Open Robot Camera
+                                </button>
 
-                    <button
-                    className="flex items-center gap-1 text-white bg-red-500 hover:bg-red-600 text-sm px-2 py-1 rounded font-semibold leading-tight cursor-pointer active:scale-95 transition-transform duration-100 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    onClick={() => stopSession()}
-                    disabled={!activeSession || isStopping}
-                    >
-                    Stop Session
-                    </button>
+                                <button
+                                    type="button"
+                                    className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                                    onClick={() => window.open(DB_GUI_URL, "_blank")}
+                                    disabled={!DB_GUI_URL}
+                                >
+                                    Open Database GUI
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                    <StatusIndicator active={activeSession} onMsg="Session Active" offMsg="Session Inactive"/>
+                {dashboardError && (
+                    <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
+                        {dashboardError}
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <DashboardPanel>
+                        <MessageWB type="camera" />
+                    </DashboardPanel>
+
+                    <DashboardPanel>
+                        <MessageWB type="imu" />
+                    </DashboardPanel>
+
+                    <DashboardPanel>
+                        <MessageWB type="robot" />
+                    </DashboardPanel>
+
+                    <DashboardPanel>
+                        <MessageWB type="misc" />
+                    </DashboardPanel>
+
+                    <DashboardPanel className="xl:col-span-2">
+                        <BackupCard sendMessage={sendMessage} />
+                    </DashboardPanel>
                 </div>
             </div>
-
-            <div className='flex flex-col items-center pt-16 gap-5 justify-center'>
-
-                <div className='flex flex-row items-center gap-5'>
-                    
-                    <MessageWB type="camera"/>
-                    <MessageWB type="imu"/>
-                    <MessageWB type="robot"/>  
-
-                </div>
-
-                <div className='flex flex-row items-center gap-5'>
-                    
-                    <MessageWB type="misc" />
-                    <BackupCard sendMessage={sendMessage}/> 
-
-                </div>
-
-
-            </div>
-
-
         </div>
-    )
-
-
+    );
 }

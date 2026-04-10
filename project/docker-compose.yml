@@ -44,6 +44,17 @@ services:
   web:
       build:
         context: ./web
+        args:
+          HOST_IP: ${HOST_IP}
+          FASTAPI_PORT: ${FASTAPI_PORT}
+          VITE_API_URL: ${VITE_API_URL:-}
+          VITE_WS_URL: ${VITE_WS_URL:-}
+          VITE_AI_URL: ${VITE_AI_URL:-}
+          VITE_TWINS_URL: ${VITE_TWINS_URL:-}
+          VITE_ROBOT_CAMERA_URL: ${VITE_ROBOT_CAMERA_URL:-}
+          VITE_DB_GUI_URL: ${VITE_DB_GUI_URL:-}
+          ROBOT_CAMERA_URL: ${ROBOT_CAMERA_URL:-}
+          DB_GUI_URL: ${DB_GUI_URL:-}
       container_name: web-frontend
       ports:
         - "${WEB_PORT}:80"

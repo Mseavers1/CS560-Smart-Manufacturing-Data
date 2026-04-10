@@ -11,6 +11,28 @@ from typing import Any
 
 from fast_server.parsing import parse_camera_message, parse_imu_message
 
+
+def build_allowed_origins() -> list[str]:
+    host_ip = os.getenv("HOST_IP", "localhost")
+    web_port = os.getenv("WEB_PORT", "80")
+    fastapi_port = os.getenv("FASTAPI_PORT", "8000")
+
+    origins = {
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        f"http://{host_ip}",
+        f"http://{host_ip}:{web_port}",
+        f"http://{host_ip}:3000",
+        f"http://{host_ip}:5173",
+        f"http://{host_ip}:{fastapi_port}",
+    }
+
+    return sorted(origins)
+
 # MQTT Config Setup
 mqtt_config = MQTTConfig(
     host="host.docker.internal",
@@ -24,14 +46,7 @@ app = FastAPI()
 # Cores Setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://192.168.1.76",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://192.168.1.76:5173",
-        "http://192.168.1.76:3000",
-        "http://192.168.1.76:8001",
-    ],
+    allow_origins=build_allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,

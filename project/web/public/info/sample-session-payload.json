@@ -1,0 +1,10 @@
+{
+  "label": "ses_2026-04-10T14:30:00.000Z",
+  "operator": "research-team",
+  "station": "cell-a",
+  "notes": [
+    "startup checks complete",
+    "camera feed verified",
+    "ready for material run"
+  ]
+}

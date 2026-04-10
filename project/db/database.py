@@ -297,7 +297,7 @@ class DatabaseSingleton:
         
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
-                SELECT label
+                SELECT id, label
                 FROM session
             """)
         

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { apiGet, apiPost } from "../api/apiClient";
 
 export default function BackupCard({sendMessage}) {
 
@@ -27,18 +28,7 @@ export default function BackupCard({sendMessage}) {
         try {
             sendMessage("misc", "info", "Fetching Backups...");
 
-            const res = await fetch("http://192.168.1.76:8000/backup/list");
-
-            if (!res.ok) {
-                sendMessage(
-                    "misc",
-                    "error",
-                    "Failed to fetch backups: " + res.status + " " + res.statusText
-                );
-                return;
-            }
-
-            const data = await res.json();
+            const data = await apiGet("/backup/list");
             setBackupFiles(data.files);
 
         } catch (err) {
@@ -58,21 +48,7 @@ export default function BackupCard({sendMessage}) {
 
         try {
 
-            const res = await fetch(
-                "http://192.168.1.76:8000/backup/restore/" + filepath,
-                { method: "POST" }
-            );
-
-            if (!res.ok) {
-                sendMessage(
-                    "misc",
-                    "error",
-                    "Failed to recover backup from file: " + filepath + " | due to: " + res.status + " " + res.statusText
-                );
-                return;
-            }
-
-            const data = await res.json();
+            const data = await apiPost(`/backup/restore/${encodeURIComponent(filepath)}`);
 
             if (data.success) {
                 sendMessage("misc", "info", "Loaded Backup Sucessfully");
@@ -95,18 +71,7 @@ export default function BackupCard({sendMessage}) {
         try {
             sendMessage("misc", "info", "Manually creating a backup...");
 
-            const res = await fetch("http://192.168.1.76:8000/backup/");
-
-            if (!res.ok) {
-                sendMessage(
-                    "misc",
-                    "error",
-                    "Failed to create a backup: " + res.status + " " + res.statusText
-                );
-                return;
-            }
-
-            const data = await res.json();
+            const data = await apiGet("/backup");
 
             if (data.success) {
                 sendMessage("misc", "info", "Backup created successfully!");
