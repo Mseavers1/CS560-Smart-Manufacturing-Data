@@ -1,5 +1,25 @@
-digital-twin/
-digital-twin/node_modules/.bin/loose-envify
-/project/fast_server/venv/
-/project/.env
-/venv/
+# Python virtual environments
+venv/
+.venv/
+project/fast_server/venv/
+project/venv/
+
+# Environment files
+.env
+project/.env
+
+# Node modules
+node_modules/
+digital-twin/node_modules/
+
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Common editor/system files
+.vscode/
+.idea/

@@ -1,0 +1,78 @@
+{
+  "documents": [
+    {
+      "id": "sop-daily-startup",
+      "title": "SOP: Daily Startup",
+      "description": "Operator checklist for bringing the research cell online safely.",
+      "category": "SOP",
+      "type": "md",
+      "path": "/info/sop-daily-startup.md",
+      "tags": ["startup", "safety", "operator", "daily"],
+      "notes": "Markdown files render directly in the preview panel, so this is a good format for SOPs and reference guides."
+    },
+    {
+      "id": "robot-handshake-troubleshooting",
+      "title": "Robot Handshake Troubleshooting",
+      "description": "Quick plain-text recovery steps for common communication faults.",
+      "category": "Guide",
+      "type": "txt",
+      "path": "/info/robot-handshake-troubleshooting.txt",
+      "tags": ["robot", "handshake", "troubleshooting", "txt"]
+    },
+    {
+      "id": "api-quick-reference",
+      "title": "API Quick Reference",
+      "description": "Endpoint notes for session control and message posting.",
+      "category": "Reference",
+      "type": "md",
+      "path": "/info/api-quick-reference.md",
+      "tags": ["api", "reference", "session", "dashboard"]
+    },
+    {
+      "id": "production-cutover-sop",
+      "title": "SOP: Mockup to Production Cutover",
+      "description": "Checklist for connecting the Info page and dashboard to the live API and replacing placeholders safely.",
+      "category": "SOP",
+      "type": "md",
+      "path": "/info/production-cutover-sop.md",
+      "tags": ["production", "api", "deployment", "cutover"],
+      "notes": "Use this SOP before moving the mock Info page into the live dashboard codebase."
+    },
+    {
+      "id": "data-retention-matrix",
+      "title": "Data Retention Matrix",
+      "description": "CSV view of what data gets retained and for how long.",
+      "category": "Reference",
+      "type": "csv",
+      "path": "/info/data-retention-matrix.csv",
+      "tags": ["backup", "retention", "csv", "archive"]
+    },
+    {
+      "id": "sample-session-payload",
+      "title": "Sample Session Payload",
+      "description": "JSON example that can be used while testing the backend.",
+      "category": "Reference",
+      "type": "json",
+      "path": "/info/sample-session-payload.json",
+      "tags": ["json", "session", "payload", "example"]
+    },
+    {
+      "id": "floor-safety-brief",
+      "title": "Floor Safety Brief",
+      "description": "PDF briefing that can be opened in place or in a new browser tab.",
+      "category": "PDF",
+      "type": "pdf",
+      "path": "/info/floor-safety-brief.pdf",
+      "tags": ["pdf", "safety", "briefing", "floor"]
+    },
+    {
+      "id": "running-a-test",
+      "title": "How to run a test",
+      "description": "Process for running a test.",
+      "category": "md",
+      "type": "md",
+      "path": "/info/running-a-test.md",
+      "tags": ["md", "test", "process", "guide"]
+    }
+  ]
+}
