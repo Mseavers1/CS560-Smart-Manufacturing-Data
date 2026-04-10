@@ -194,16 +194,18 @@ export default function DataDashboard() {
 
                                 <button
                                     type="button"
-                                    className="rounded-md bg-yellow-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-yellow-600"
+                                    className="rounded-md bg-yellow-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-400"
                                     onClick={() => window.open(ROBOT_CAMERA_URL, "_blank")}
+                                    disabled={!ROBOT_CAMERA_URL}
                                 >
                                     Open Robot Camera
                                 </button>
 
                                 <button
                                     type="button"
-                                    className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+                                    className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                                     onClick={() => window.open(DB_GUI_URL, "_blank")}
+                                    disabled={!DB_GUI_URL}
                                 >
                                     Open Database GUI
                                 </button>

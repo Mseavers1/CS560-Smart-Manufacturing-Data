@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiRequest, getApiBaseUrl, isMockApiEnabled } from "./api/apiClient";
+import { apiRequest, getApiBaseUrl } from "./api/apiClient";
 
 const TEXT_FILE_TYPES = new Set(["md", "txt", "json", "csv", "log"]);
 const IMAGE_FILE_TYPES = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
@@ -547,9 +547,7 @@ export default function HomePage() {
     };
 
     const documentCountLabel = `${filteredDocuments.length} of ${documents.length || 0} files`;
-    const apiBaseLabel = isMockApiEnabled()
-        ? "Mock API enabled"
-        : getApiBaseUrl() || "No API base URL configured";
+    const apiBaseLabel = getApiBaseUrl() || "No API base URL configured";
 
     return (
         <div className="min-h-screen bg-transparent text-slate-900">

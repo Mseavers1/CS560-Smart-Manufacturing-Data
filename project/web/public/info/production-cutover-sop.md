@@ -6,9 +6,8 @@ This SOP explains how to move the current mockup into the live dashboard and con
 ## What This Mockup Uses Today
 - The Info page loads documents from `public/info/manifest.json`.
 - The API Explorer uses `VITE_API_URL` as the backend base URL.
-- If `VITE_USE_MOCK_API=true`, requests return mock responses from `src/api/apiClient.js`.
-- The top navigation still contains hardcoded links for external tools such as AI and Twins.
-- The saved endpoint list in `src/Home.jsx` is a hand-maintained mock catalog.
+- The frontend build derives API and service URLs from the shared environment configuration.
+- The saved endpoint list in `src/Home.jsx` is a hand-maintained endpoint catalog.
 
 ## Production Cutover Steps
 
@@ -22,10 +21,10 @@ This SOP explains how to move the current mockup into the live dashboard and con
   - `GET /session/stop/`
   - `POST /send/<dest>`
 
-## 2. Disable mock mode
-- Set `VITE_USE_MOCK_API=false` in production.
-- Verify the deployed environment does not accidentally inherit a local `.env` file with mock mode enabled.
-- If mock mode is no longer needed, remove the mock response code from `src/api/apiClient.js`.
+## 2. Confirm live API routing
+- Make sure `HOST_IP` and `FASTAPI_PORT` in the shared `.env` file point at the production backend.
+- If you need an override, provide `VITE_API_URL` or `VITE_WS_URL` during the frontend build.
+- Rebuild the frontend whenever those values change because Vite bakes them into the static bundle.
 
 ## 3. Replace placeholder endpoint definitions
 - Review the saved API endpoint catalog in `src/Home.jsx`.
@@ -33,7 +32,7 @@ This SOP explains how to move the current mockup into the live dashboard and con
 - Add any missing live endpoints that users should be able to inspect from the Info page.
 - If the real system exposes API documentation, consider loading endpoint metadata from the backend instead of hardcoding it in the UI.
 
-## 4. Replace hardcoded service links
+## 4. Keep service links environment-driven
 - Move AI, Twins, camera, database GUI, and any other service URLs into environment variables.
 - Avoid leaving IP addresses directly in component files.
 - Prefer names such as:
@@ -61,7 +60,6 @@ This SOP explains how to move the current mockup into the live dashboard and con
 - Log operator actions if the live dashboard needs traceability.
 
 ## 8. Test the cutover
-- Test with `VITE_USE_MOCK_API=false`.
 - Run the frontend against a staging or test API before production.
 - Verify:
   - Info documents load
@@ -81,8 +79,9 @@ This SOP explains how to move the current mockup into the live dashboard and con
 
 ## Suggested Environment Variables
 ```env
+HOST_IP=192.168.1.76
+FASTAPI_PORT=8000
 VITE_API_URL=https://your-live-api.example.com
-VITE_USE_MOCK_API=false
 VITE_AI_URL=https://your-ai-service.example.com
 VITE_TWINS_URL=https://your-twins-service.example.com
 VITE_ROBOT_CAMERA_URL=https://your-camera-service.example.com
@@ -91,7 +90,6 @@ VITE_DB_GUI_URL=https://your-db-gui.example.com
 
 ## Final Pre-Deployment Checklist
 - Live API URL is configured correctly.
-- Mock mode is disabled.
 - External service links are not hardcoded.
 - Sample documents are replaced with real documents.
 - Production-only authentication behavior is tested.

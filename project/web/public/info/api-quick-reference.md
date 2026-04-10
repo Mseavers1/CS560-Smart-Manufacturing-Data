@@ -15,4 +15,4 @@
 
 ## Notes
 - The Info page includes an API Explorer so this reference and live checks stay together.
-- When `VITE_USE_MOCK_API=true`, requests use the built-in mock handlers.
+- The frontend now reads its live API base URL from the environment-driven Vite configuration.

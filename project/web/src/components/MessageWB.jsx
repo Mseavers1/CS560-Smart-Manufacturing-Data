@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import StatusIndicator from "./StatusIndicator";
-
-const API_URL = import.meta.env.VITE_API_URL;
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://192.168.1.76:8000";
+import { resolveWsUrl } from "../api/apiClient";
 
 function formatTimestamp(value) {
     if (!value) return "--";
@@ -18,7 +16,7 @@ export default function MessageWB({ type }) {
     const capitalizeType = type.charAt(0).toUpperCase() + type.slice(1);
 
     useEffect(() => {
-        const ws = new WebSocket(`${WS_URL}/ws/${type}`);
+        const ws = new WebSocket(resolveWsUrl(`/ws/${type}`));
 
         ws.onmessage = (event) => {
             try {
@@ -70,28 +68,6 @@ export default function MessageWB({ type }) {
             behavior: "auto",
         });
     }, [lines]);
-
-    async function getLatest() {
-        try {
-            const res = await fetch(`${API_URL}/${type}/latest`);
-            const json = await res.json();
-
-            if (json.success) {
-                setLines((prev) => {
-                    const normalized = json.data.map((item) => ({
-                        text: item.text ?? JSON.stringify(item),
-                        type: item.type ?? "normal",
-                        timestamp: item.timestamp ?? "--",
-                    }));
-
-                    const next = [...prev, ...normalized];
-                    return next.length > 500 ? next.slice(-500) : next;
-                });
-            }
-        } catch (err) {
-            console.error(`Failed to fetch latest ${type} messages:`, err);
-        }
-    }
 
     return (
         <div className="flex h-full min-h-0 w-full flex-col">
@@ -152,10 +128,11 @@ export default function MessageWB({ type }) {
 
                     <button
                         type="button"
-                        className="rounded-md bg-slate-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700"
-                        onClick={getLatest}
+                        className="rounded-md bg-slate-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-400"
+                        disabled
+                        title="No historical message endpoint is available for this channel yet."
                     >
-                        Load Recent
+                        Recent Unavailable
                     </button>
 
                     <button

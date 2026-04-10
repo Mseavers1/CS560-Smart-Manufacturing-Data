@@ -3,6 +3,9 @@ import DataDashboard from "./DataDashboard.jsx";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 
+const AI_URL = import.meta.env.VITE_AI_URL;
+const TWINS_URL = import.meta.env.VITE_TWINS_URL;
+
 function App() {
   const nav = useNavigate();
   const location = useLocation();
@@ -42,23 +45,27 @@ function App() {
               Data Dashboard
             </button>
 
-            <a
-              href="http://192.168.1.76:3000/"
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded bg-cyan-600 p-2 text-white transition hover:bg-cyan-500"
-            >
-              AI
-            </a>
+            {AI_URL ? (
+              <a
+                href={AI_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 rounded bg-cyan-600 p-2 text-white transition hover:bg-cyan-500"
+              >
+                AI
+              </a>
+            ) : null}
 
-            <a
-              href="http://192.168.1.76:8001/"
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded bg-cyan-600 p-2 text-white transition hover:bg-cyan-500"
-            >
-              Twins
-            </a>
+            {TWINS_URL ? (
+              <a
+                href={TWINS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 rounded bg-cyan-600 p-2 text-white transition hover:bg-cyan-500"
+              >
+                Twins
+              </a>
+            ) : null}
           </div>
         </div>
       </nav>
