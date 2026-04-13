@@ -1,7 +1,0 @@
-Floor Safety Brief
-
-Before motion begins:
-- Verify every guard is closed.
-- Remove loose tools from the fixture table.
-- Announce the start of a new run to nearby operators.
-- Keep the pendant accessible until the first cycle completes.
