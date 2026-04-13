@@ -652,7 +652,7 @@ class DatabaseSingleton:
         return found is not None
 
     # Call to create a new session in DB & update current session
-    async def create_session(self, label):
+    async def create_session(self, label, is_test_session=True):
 
         session_id = await self.get_latest_session()
 
@@ -664,12 +664,14 @@ class DatabaseSingleton:
 
             session_id = await conn.fetchval(
                 """
-                INSERT INTO session (label, started_at) VALUES ($1, $2) RETURNING id
+                INSERT INTO session (label, started_at, is_test_session) VALUES ($1, $2, $3) RETURNING id
                 """,
-                label, self.get_time()
+                label, self.get_time(), is_test_session
             )
 
         self.current_session_id = session_id
+
+        return session_id
 
     # Call to end the current active session
     async def end_session(self):

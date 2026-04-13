@@ -286,7 +286,7 @@ async def get_robot(label: str) -> dict[str, Any]:
 
 # API to start a session
 @app.get("/session/start/{label}")
-async def start_session(label: str) -> dict[str, Any]:
+async def start_session(label: str, is_test_session: bool = True) -> dict[str, Any]:
 
     # Create new logs for this new session only
     loggers.create_loggers()
@@ -294,7 +294,7 @@ async def start_session(label: str) -> dict[str, Any]:
     # Prep logs and prepare session id
     try:
         db = app.state.db
-        await db.create_session(label=label)
+        session_id = await db.create_session(label=label, is_test_session=is_test_session)
 
         loggers.log_system_logger(f"System session created with label: {label}")
         loggers.cur_camera_logger.info(f"Camera session ready with label: {label}")
@@ -303,7 +303,11 @@ async def start_session(label: str) -> dict[str, Any]:
 
         await broadcast_message(misc_manager, "Session started with logs successfully")
 
-        return {"message": f"Session started with label: {label}", "success": True}
+        return {
+            "message": f"Session started with label: {label}",
+            "id": session_id,
+            "success": True,
+        }
     except Exception as e:
 
         loggers.log_system_logger(f"Failed to start session '{label}': {e}", True)

@@ -41,6 +41,7 @@ function getSessionDisplayValue(session) {
 export default function DataDashboard() {
     const [activeSession, setActiveSession] = useState(false);
     const [latestSession, setLatestSession] = useState("");
+    const [isTestSession, setIsTestSession] = useState(true);
     const [isStopping, setIsStopping] = useState(false);
     const [isStatusLoading, setIsStatusLoading] = useState(true);
     const [isLatestSessionLoading, setIsLatestSessionLoading] = useState(true);
@@ -108,11 +109,13 @@ export default function DataDashboard() {
         try {
             const now = new Date();
             const label = "ses_" + now.toISOString();
-            const data = await startSessionByLabel(label);
+            const data = await startSessionByLabel(label, isTestSession);
 
             if (data.success) {
                 setActiveSession(true);
-                // needs to change to TODO setLatestSession(label);
+                if (data.id !== undefined && data.id !== null) {
+                    setLatestSession(String(data.id));
+                }
                 await sendMessage("misc", "info", "Session ready");
             } else {
                 const message = "Failed to start session: " + data.error;
@@ -200,6 +203,17 @@ export default function DataDashboard() {
                                 >
                                     {isStopping ? "Stopping..." : "Stop Session"}
                                 </button>
+
+                                <label className="ml-1 inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 accent-green-600"
+                                        checked={isTestSession}
+                                        onChange={(event) => setIsTestSession(event.target.checked)}
+                                        disabled={activeSession || isActionDisabled}
+                                    />
+                                    Test Session
+                                </label>
                             </div>
                         </div>
 
