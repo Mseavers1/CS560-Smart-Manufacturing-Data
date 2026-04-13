@@ -1,51 +1,74 @@
 {
   "documents": [
     {
-      "id": "sop-daily-startup",
-      "title": "SOP: Daily Startup",
-      "description": "Operator checklist for bringing the research cell online safely.",
+      "id": "database-updates",
+      "title": "SOP: Database Update Workflow",
+      "description": "How to safely add columns and align parser/database insert updates.",
       "category": "SOP",
       "type": "md",
-      "path": "/info/sop-daily-startup.md",
-      "tags": ["startup", "safety", "operator", "daily"],
-      "notes": "Markdown files render directly in the preview panel, so this is a good format for SOPs and reference guides."
+      "path": "/info/database-updates.md",
+      "tags": [
+        "database",
+        "schema",
+        "parsing",
+        "sop"
+      ]
     },
     {
-      "id": "robot-handshake-troubleshooting",
-      "title": "Robot Handshake Troubleshooting",
-      "description": "Quick plain-text recovery steps for common communication faults.",
-      "category": "Guide",
-      "type": "txt",
-      "path": "/info/robot-handshake-troubleshooting.txt",
-      "tags": ["robot", "handshake", "troubleshooting", "txt"]
+      "id": "device-id-diagram",
+      "title": "Device ID Diagram",
+      "description": "Diagram image showing device/session ID relationships.",
+      "category": "Diagram",
+      "type": "png",
+      "path": "/info/device_id_diagram.drawio.png",
+      "tags": [
+        "diagram",
+        "device-id",
+        "drawio",
+        "reference"
+      ]
     },
     {
-      "id": "api-quick-reference",
-      "title": "API Quick Reference",
-      "description": "Endpoint notes for session control and message posting.",
-      "category": "Reference",
-      "type": "md",
-      "path": "/info/api-quick-reference.md",
-      "tags": ["api", "reference", "session", "dashboard"]
+      "id": "merged-diagram",
+      "title": "Merged System Diagram",
+      "description": "Combined architecture diagram export for quick review.",
+      "category": "PDF",
+      "type": "pdf",
+      "path": "/info/merged%20diagram.pdf",
+      "tags": [
+        "diagram",
+        "architecture",
+        "pdf",
+        "systems"
+      ]
     },
     {
       "id": "production-cutover-sop",
       "title": "SOP: Mockup to Production Cutover",
-      "description": "Checklist for connecting the Info page and dashboard to the live API and replacing placeholders safely.",
+      "description": "Checklist for moving dashboard and info features safely into production.",
       "category": "SOP",
       "type": "md",
       "path": "/info/production-cutover-sop.md",
-      "tags": ["production", "api", "deployment", "cutover"],
-      "notes": "Use this SOP before moving the mock Info page into the live dashboard codebase."
+      "tags": [
+        "production",
+        "deployment",
+        "cutover",
+        "api"
+      ]
     },
     {
-      "id": "data-retention-matrix",
-      "title": "Data Retention Matrix",
-      "description": "CSV view of what data gets retained and for how long.",
-      "category": "Reference",
-      "type": "csv",
-      "path": "/info/data-retention-matrix.csv",
-      "tags": ["backup", "retention", "csv", "archive"]
+      "id": "running-a-test",
+      "title": "How to Run a Test",
+      "description": "Step-by-step operating process for a full test session.",
+      "category": "SOP",
+      "type": "md",
+      "path": "/info/running-a-test.md",
+      "tags": [
+        "test",
+        "operation",
+        "workflow",
+        "lab"
+      ]
     },
     {
       "id": "sample-session-payload",
@@ -54,25 +77,12 @@
       "category": "Reference",
       "type": "json",
       "path": "/info/sample-session-payload.json",
-      "tags": ["json", "session", "payload", "example"]
-    },
-    {
-      "id": "floor-safety-brief",
-      "title": "Floor Safety Brief",
-      "description": "PDF briefing that can be opened in place or in a new browser tab.",
-      "category": "PDF",
-      "type": "pdf",
-      "path": "/info/floor-safety-brief.pdf",
-      "tags": ["pdf", "safety", "briefing", "floor"]
-    },
-    {
-      "id": "running-a-test",
-      "title": "How to run a test",
-      "description": "Process for running a test.",
-      "category": "md",
-      "type": "md",
-      "path": "/info/running-a-test.md",
-      "tags": ["md", "test", "process", "guide"]
+      "tags": [
+        "json",
+        "session",
+        "payload",
+        "example"
+      ]
     }
   ]
 }
