@@ -411,7 +411,9 @@ export default function HomePage() {
 
         const loadManifest = async () => {
             try {
-                const response = await fetch("/info/manifest.json");
+                const response = await fetch(`/info/manifest.json?v=${Date.now()}`, {
+                    cache: "no-store",
+                });
 
                 if (!response.ok) {
                     throw new Error(`Manifest request failed with status ${response.status}`);
