@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  imu_83_joint1:
+    image: ${IMU_EDGE_IMAGE:-smart-mfg-imu-imu:latest}
+    user: "${IMU_CONTAINER_USER:-0:0}"
+    command: ["python3", "-m", "imu_edge"]
+    environment:
+      DEVICE_ID: "${DEVICE_ID:-83}"
+      IMU_SOCKET_PATH: "${IMU_SOCKET_PATH:-/run/imu-hw/imu.sock}"
+      IMU_SESSION_ID: "${IMU_SESSION_ID:-imu-node-83}"
+      IMU_SAMPLE_HZ: "${IMU_SAMPLE_HZ:-100}"
+      IMU_REQUEST_TARE: "${IMU_REQUEST_TARE:-true}"
+      IMU_RESET_COUNTER: "${IMU_RESET_COUNTER:-true}"
+      IMU_AUTO_START_SESSION: "${IMU_AUTO_START_SESSION:-true}"
+      IMU_STOP_SESSION_ON_EXIT: "${IMU_STOP_SESSION_ON_EXIT:-false}"
+      MQTT_BROKER_IP: "${MQTT_BROKER_IP:-mqtt-broker}"
+      MQTT_BROKER_PORT: "${MQTT_BROKER_PORT:-1883}"
+      MQTT_TOPIC: "${MQTT_TOPIC:-imu/data}"
+      IMU_CSV_PATH: "${IMU_CSV_PATH:-/app/data/imu-83-joint1.csv}"
+      IMU_EDGE_HEALTH_PATH: "${IMU_EDGE_HEALTH_PATH:-/tmp/imu-edge-health.json}"
+    volumes:
+      - ${IMU_DATA_DIR:-/home/admin/smart-mfg-imu/data}:/app/data
+      - ${IMU_SOCKET_DIR:-/run/imu-hw}:/run/imu-hw
+    healthcheck:
+      test: ["CMD", "python3", "-m", "imu_edge", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.device_id == ${NODE_DEVICE_IP:-192.168.1.83}
+      restart_policy:
+        condition: on-failure
