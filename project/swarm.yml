@@ -6,9 +6,9 @@ services:
     user: "${IMU_CONTAINER_USER:-0:0}"
     command: ["python3", "-m", "imu_edge"]
     environment:
-      DEVICE_ID: "${DEVICE_ID:-83}"
+      DEVICE_ID: "${IMU_83_DEVICE_ID:-83}"
       IMU_SOCKET_PATH: "${IMU_SOCKET_PATH:-/run/imu-hw/imu.sock}"
-      IMU_SESSION_ID: "${IMU_SESSION_ID:-imu-node-83}"
+      IMU_SESSION_ID: "${IMU_83_SESSION_ID:-imu-node-83}"
       IMU_SAMPLE_HZ: "${IMU_SAMPLE_HZ:-100}"
       IMU_REQUEST_TARE: "${IMU_REQUEST_TARE:-true}"
       IMU_RESET_COUNTER: "${IMU_RESET_COUNTER:-true}"
@@ -16,9 +16,10 @@ services:
       IMU_STOP_SESSION_ON_EXIT: "${IMU_STOP_SESSION_ON_EXIT:-false}"
       MQTT_BROKER_IP: "${MQTT_BROKER_IP:-mqtt-broker}"
       MQTT_BROKER_PORT: "${MQTT_BROKER_PORT:-1883}"
-      MQTT_TOPIC: "${MQTT_TOPIC:-imu/data}"
-      IMU_CSV_PATH: "${IMU_CSV_PATH:-/app/data/imu-83-joint1.csv}"
-      IMU_EDGE_HEALTH_PATH: "${IMU_EDGE_HEALTH_PATH:-/tmp/imu-edge-health.json}"
+      MQTT_CLIENT_ID: "${IMU_83_DEVICE_ID:-83}"
+      MQTT_TOPIC: "${IMU_83_MQTT_TOPIC:-imu/83}"
+      IMU_CSV_PATH: "${IMU_83_CSV_PATH:-/app/data/imu-83-joint1.csv}"
+      IMU_EDGE_HEALTH_PATH: "${IMU_83_EDGE_HEALTH_PATH:-/tmp/imu-edge-health-83.json}"
     volumes:
       - ${IMU_DATA_DIR:-/home/admin/smart-mfg-imu/data}:/app/data
       - ${IMU_SOCKET_DIR:-/run/imu-hw}:/run/imu-hw
@@ -32,6 +33,112 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.device_id == ${NODE_DEVICE_IP:-192.168.1.83}
+          - node.labels.device_id == ${IMU_83_NODE_DEVICE_IP:-192.168.1.83}
       restart_policy:
         condition: on-failure
+
+  imu_84_joint2:
+    image: ${IMU_EDGE_IMAGE:-smart-mfg-imu-imu:latest}
+    user: "${IMU_CONTAINER_USER:-0:0}"
+    command: ["python3", "-m", "imu_edge"]
+    environment:
+      DEVICE_ID: "${IMU_84_DEVICE_ID:-84}"
+      IMU_SOCKET_PATH: "${IMU_SOCKET_PATH:-/run/imu-hw/imu.sock}"
+      IMU_SESSION_ID: "${IMU_84_SESSION_ID:-imu-node-84}"
+      IMU_SAMPLE_HZ: "${IMU_SAMPLE_HZ:-100}"
+      IMU_REQUEST_TARE: "${IMU_REQUEST_TARE:-true}"
+      IMU_RESET_COUNTER: "${IMU_RESET_COUNTER:-true}"
+      IMU_AUTO_START_SESSION: "${IMU_AUTO_START_SESSION:-true}"
+      IMU_STOP_SESSION_ON_EXIT: "${IMU_STOP_SESSION_ON_EXIT:-false}"
+      MQTT_BROKER_IP: "${MQTT_BROKER_IP:-mqtt-broker}"
+      MQTT_BROKER_PORT: "${MQTT_BROKER_PORT:-1883}"
+      MQTT_CLIENT_ID: "${IMU_84_DEVICE_ID:-84}"
+      MQTT_TOPIC: "${IMU_84_MQTT_TOPIC:-imu/84}"
+      IMU_CSV_PATH: "${IMU_84_CSV_PATH:-/app/data/imu-84-joint2.csv}"
+      IMU_EDGE_HEALTH_PATH: "${IMU_84_EDGE_HEALTH_PATH:-/tmp/imu-edge-health-84.json}"
+    volumes:
+      - ${IMU_DATA_DIR:-/home/admin/smart-mfg-imu/data}:/app/data
+      - ${IMU_SOCKET_DIR:-/run/imu-hw}:/run/imu-hw
+    healthcheck:
+      test: ["CMD", "python3", "-m", "imu_edge", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.device_id == ${IMU_84_NODE_DEVICE_IP:-192.168.1.84}
+      restart_policy:
+        condition: on-failure
+
+  # imu_85_joint3:
+  #   image: ${IMU_EDGE_IMAGE:-smart-mfg-imu-imu:latest}
+  #   user: "${IMU_CONTAINER_USER:-0:0}"
+  #   command: ["python3", "-m", "imu_edge"]
+  #   environment:
+  #     DEVICE_ID: "85"
+  #     IMU_SOCKET_PATH: "${IMU_SOCKET_PATH:-/run/imu-hw/imu.sock}"
+  #     IMU_SESSION_ID: "imu-node-85"
+  #     IMU_SAMPLE_HZ: "${IMU_SAMPLE_HZ:-100}"
+  #     IMU_REQUEST_TARE: "${IMU_REQUEST_TARE:-true}"
+  #     IMU_RESET_COUNTER: "${IMU_RESET_COUNTER:-true}"
+  #     IMU_AUTO_START_SESSION: "${IMU_AUTO_START_SESSION:-true}"
+  #     IMU_STOP_SESSION_ON_EXIT: "${IMU_STOP_SESSION_ON_EXIT:-false}"
+  #     MQTT_BROKER_IP: "${MQTT_BROKER_IP:-mqtt-broker}"
+  #     MQTT_BROKER_PORT: "${MQTT_BROKER_PORT:-1883}"
+  #     MQTT_TOPIC: "${MQTT_TOPIC:-imu/data}"
+  #     IMU_CSV_PATH: "/app/data/imu-85-joint1.csv"
+  #     IMU_EDGE_HEALTH_PATH: "/tmp/imu-edge-health-85.json"
+  #   volumes:
+  #     - ${IMU_DATA_DIR:-/home/admin/smart-mfg-imu/data}:/app/data
+  #     - ${IMU_SOCKET_DIR:-/run/imu-hw}:/run/imu-hw
+  #   healthcheck:
+  #     test: ["CMD", "python3", "-m", "imu_edge", "healthcheck"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 15s
+  #   deploy:
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.labels.device_id == 192.168.1.85
+  #     restart_policy:
+  #       condition: on-failure
+
+  # imu_86_joint4:
+  #   image: ${IMU_EDGE_IMAGE:-smart-mfg-imu-imu:latest}
+  #   user: "${IMU_CONTAINER_USER:-0:0}"
+  #   command: ["python3", "-m", "imu_edge"]
+  #   environment:
+  #     DEVICE_ID: "86"
+  #     IMU_SOCKET_PATH: "${IMU_SOCKET_PATH:-/run/imu-hw/imu.sock}"
+  #     IMU_SESSION_ID: "imu-node-86"
+  #     IMU_SAMPLE_HZ: "${IMU_SAMPLE_HZ:-100}"
+  #     IMU_REQUEST_TARE: "${IMU_REQUEST_TARE:-true}"
+  #     IMU_RESET_COUNTER: "${IMU_RESET_COUNTER:-true}"
+  #     IMU_AUTO_START_SESSION: "${IMU_AUTO_START_SESSION:-true}"
+  #     IMU_STOP_SESSION_ON_EXIT: "${IMU_STOP_SESSION_ON_EXIT:-false}"
+  #     MQTT_BROKER_IP: "${MQTT_BROKER_IP:-mqtt-broker}"
+  #     MQTT_BROKER_PORT: "${MQTT_BROKER_PORT:-1883}"
+  #     MQTT_TOPIC: "${MQTT_TOPIC:-imu/data}"
+  #     IMU_CSV_PATH: "/app/data/imu-86-joint1.csv"
+  #     IMU_EDGE_HEALTH_PATH: "/tmp/imu-edge-health-86.json"
+  #   volumes:
+  #     - ${IMU_DATA_DIR:-/home/admin/smart-mfg-imu/data}:/app/data
+  #     - ${IMU_SOCKET_DIR:-/run/imu-hw}:/run/imu-hw
+  #   healthcheck:
+  #     test: ["CMD", "python3", "-m", "imu_edge", "healthcheck"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 15s
+  #   deploy:
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.labels.device_id == 192.168.1.86
+  #     restart_policy:
+  #       condition: on-failure
