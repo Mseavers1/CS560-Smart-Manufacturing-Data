@@ -1,3 +1,5 @@
+RESOLVED as of Apr 20 2026
+
 Key Limitation
 
 Your Swarm task can see i2c-1 but the kernel refuses open() with EPERM (Operation not permitted).

@@ -1,3 +1,4 @@
+Apr 20, 2026
 # IMU Setup Guide
 
 This guide covers the Raspberry Pi host setup for the redesigned IMU deployment and the Swarm steps needed to add each IMU node to the cluster.
