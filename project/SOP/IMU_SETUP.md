@@ -49,6 +49,7 @@ docker version
 If the node is not already in the Swarm, join it from the Pi with the worker token from the manager:
 
 ```bash
+docker swarm join-token worker
 docker swarm join --token <worker-token> 192.168.1.76:2377
 ```
 
@@ -106,6 +107,13 @@ sudo chown admin:admin /run/imu-hw
 IMU_SOCKET_PATH=/run/imu-hw/imu.sock python3 -m imu_host
 ```
 
+Might get error here like: 
+```bash
+(.venv) admin@RPIIMUJ3:~$ sudo mkdir -p /run/imu-hw.sock
+sudo: unable to resolve host RPIIMUJ3: Name or service not known
+```
+This is a hostname issue, you have to go into /etc/hosts and change the 127.1.1.1 to RPIIMUJ#
+
 Expected startup output includes:
 
 ```text
@@ -151,6 +159,8 @@ Before installing it on the Pi, make sure these fields match the actual machine:
 
 For a repo located at `/home/admin/imu_node_smr`, a working service looks like:
 
+ensure the working directory is changed.
+
 ```ini
 [Unit]
 Description=Smart Manufacturing IMU Hardware Service
@@ -175,6 +185,7 @@ WantedBy=multi-user.target
 
 Install and start it:
 
+cd back into the imu_node_smr dir
 ```bash
 sudo cp deploy/systemd/imu-hw.service /etc/systemd/system/imu-hw.service
 sudo systemctl daemon-reload
