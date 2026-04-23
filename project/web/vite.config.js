@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => {
         env.VITE_DB_GUI_URL || env.DB_GUI_URL || "",
       ),
       "import.meta.env.VITE_PORTAINER_URL": JSON.stringify(
-        env.VITE_PORTAINER_URL || env.PORTAINER_URL || "http://192.168.1.96:9000",
+        env.VITE_PORTAINER_URL || env.PORTAINER_URL || "",
       ),
     },
   };
